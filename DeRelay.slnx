@@ -1,5 +1,12 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/DeRelay.Core/DeRelay.Core.csproj" />
+    <Project Path="src\DeRelay.Api\DeRelay.Api.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/DeRelay.Tests/DeRelay.Tests.csproj" />
+  </Folder>
+  <Folder Name="/playground/">
+    <Project Path="playground/DeRelay.Playground/DeRelay.Playground.csproj" />
   </Folder>
 </Solution>
