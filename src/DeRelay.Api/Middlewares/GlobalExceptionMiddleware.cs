@@ -24,7 +24,7 @@ public class GlobalExceptionMiddleware
         }
         catch (Exception ex)
         {
-            logger.LogError("Global exception middleware catch error");
+            logger.LogError(ex, "Global exception middleware catch error");
             /*NOTE: Any write operation to Http's body make it automatically send
              and after it send we can't change any part of it. So, we should
              check if HttpContext already begin to send by other class.
