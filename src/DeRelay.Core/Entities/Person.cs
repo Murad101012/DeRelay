@@ -1,4 +1,5 @@
-﻿using DeRelay.Core.Enums;
+﻿using DeRelay.Core.Exceptions;
+using DeRelay.Core.Enums;
 
 namespace DeRelay.Core.Entities;
 
@@ -48,30 +49,31 @@ public class Person
 
     private void SetFirstName(string firstName)
     {
-        if (string.IsNullOrWhiteSpace(firstName)) throw new ArgumentNullException(nameof(firstName), "First name cannot be empty");
+        if (string.IsNullOrWhiteSpace(firstName)) throw new ValidationException("First name cannot be empty");
         FirstName = firstName;
     }
 
     private void SetLastName(string lastName)
     {
-        if (string.IsNullOrWhiteSpace(lastName)) throw new ArgumentNullException(nameof(lastName), "Last name cannot be empty");
+        if (string.IsNullOrWhiteSpace(lastName)) throw new ValidationException("Last name cannot be empty");
         LastName = lastName;
     }
 
     private void SetNickname(string nickName)
     {
-        if (string.IsNullOrWhiteSpace(nickName)) throw new ArgumentNullException(nameof(nickName), "Nickname cannot be empty");
+        if (string.IsNullOrWhiteSpace(nickName)) throw new ValidationException("Nickname cannot be empty");
         NickName = nickName;
     } 
     
     private void SetDateOfBirth(DateTime dateOfBirth)
     {
-        if (dateOfBirth > DateTime.UtcNow) throw new ArgumentException("Date of birth cannot be in the future.", nameof(dateOfBirth));
+        if (dateOfBirth > DateTime.UtcNow) throw new ValidationException("Date of birth cannot be in the future.");
         DateOfBirth = dateOfBirth;
     }
 
     private void SetGender(Gender gender)
     {
+        if (!Enum.IsDefined(typeof(Gender), gender)) throw new ValidationException($"Gender '{gender}' is not valid");
         Gender = gender;
     }
 }

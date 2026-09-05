@@ -1,5 +1,6 @@
 using DeRelay.Core.DTOs;
 using DeRelay.Core.Entities;
+using DeRelay.Core.Exceptions;
 using DeRelay.Core.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
@@ -54,7 +55,7 @@ public class PersonService(DeRelayDbContext deRelayDbContext): IPersonService
     private async Task<Person> GetPersonByIdAsync(int id)
     {
         return await deRelayDbContext.Persons.FindAsync(id) ?? 
-               throw new KeyNotFoundException($"Person with ID {id} was not found.");
+               throw new NotFoundException($"Person with ID {id} was not found.");
     }
 
     private async Task<Person> GetPersonReadOnlyByIdAsync(int id)
@@ -62,7 +63,7 @@ public class PersonService(DeRelayDbContext deRelayDbContext): IPersonService
         return await deRelayDbContext.Persons
             .AsNoTracking()
             .FirstOrDefaultAsync(person => person.Id == id) ??
-               throw new KeyNotFoundException($"Person with ID {id} was not found.");
+               throw new NotFoundException($"Person with ID {id} was not found.");
     }
 
 }
