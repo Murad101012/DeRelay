@@ -3,6 +3,7 @@ using System;
 using DeRelay.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace DeRelay.Data.Migrations
 {
     [DbContext(typeof(DeRelayDbContext))]
-    partial class DeRelayDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260901101144_PersonVariableNamesUpdate")]
+    partial class PersonVariableNamesUpdate
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
