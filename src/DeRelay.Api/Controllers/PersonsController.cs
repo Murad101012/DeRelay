@@ -1,17 +1,29 @@
 using DeRelay.Core.DTOs;
 using DeRelay.Core.Interfaces;
+using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
+using ValidationException = DeRelay.Core.Exceptions.ValidationException;
 
 namespace DeRelay.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class PersonsController(IPersonService personService): ControllerBase
+public class PersonsController(
+    IPersonService personService, 
+    IValidator<CreatePersonDto> createValidator,
+    IValidator<UpdatePersonDto> updateValidator): ControllerBase
 {
     [HttpPost]
     public async Task<ActionResult<ReturnPersonDto>> 
         Create([FromBody] CreatePersonDto dto)
     {
+        //Validate
+        var validate = await createValidator.ValidateAsync(dto);
+        //TODO: In future make all errors will be sent, not only First() error.
+        if (!validate.IsValid) 
+            throw new ValidationException(validate.Errors.First().ErrorMessage);
+        
+        //Creation
         var createdPersonId = await personService.CreatePersonAsync(dto);
         return CreatedAtAction(nameof(GetById), 
             new {id = createdPersonId}, 
@@ -21,6 +33,11 @@ public class PersonsController(IPersonService personService): ControllerBase
     [HttpPut("{id:int}")]
     public async Task<ActionResult<ReturnPersonDto>> Update(int id, [FromBody] UpdatePersonDto dto)
     {
+        var validate = await updateValidator.ValidateAsync(dto);
+        //TODO: In future make all errors will be sent, not only First() error.
+        if (!validate.IsValid) 
+            throw new ValidationException(validate.Errors.First().ErrorMessage);
+        
         await personService.UpdatePersonByIdAsync(id, dto);
         //NOTE: Automatically convert returned DTO into json and add respond body
         return Ok(await personService.GetPersonAsDtoByIdAsync(id));
