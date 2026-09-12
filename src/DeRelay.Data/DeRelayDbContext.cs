@@ -10,5 +10,6 @@ public class DeRelayDbContext(DbContextOptions<DeRelayDbContext> options) : DbCo
     protected override void OnModelCreating(ModelBuilder b)
     {
         b.ApplyConfigurationsFromAssembly(typeof(PersonConfiguration).Assembly);
+        b.ApplyConfigurationsFromAssembly(typeof(FriendshipConfiguration).Assembly);
     }
 }
