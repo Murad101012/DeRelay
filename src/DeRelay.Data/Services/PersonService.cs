@@ -67,4 +67,13 @@ public class PersonService(DeRelayDbContext deRelayDbContext): IPersonService
                throw new NotFoundException($"Person with ID {id} was not found.");
     }
 
+    /// <summary>
+    /// Checks if person exist in database without loading the actual person
+    /// </summary>
+    /// <param name="id"></param>
+    /// <returns></returns>
+    public async Task<bool> PersonExistsAsync(int id)
+    {
+        return await deRelayDbContext.Persons.AnyAsync(person => person.Id == id);
+    }
 }

@@ -9,4 +9,5 @@ public interface IPersonService
     Task<ReturnPersonDto> GetPersonAsDtoByIdAsync(int id);
     Task UpdatePersonByIdAsync(int id, UpdatePersonDto dto);
     Task DeletePersonByIdAsync(int id);
+    Task<bool> PersonExistsAsync(int id);
 }
