@@ -19,7 +19,7 @@ public class Person
             //Calculate roughly by year
             var today = DateTime.UtcNow;
             var age = today.Year - DateOfBirth.Year;
-            
+
             //Then checks by month/days that if current date already passed it birthday.
             if (today.Month < DateOfBirth.Month || (today.Month == DateOfBirth.Month && today.Day < DateOfBirth.Day))
             {

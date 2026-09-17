@@ -5,6 +5,7 @@ namespace DeRelay.Core.Constants;
 /// </summary>
 public static class PersonConstraints
 {
+    public const int PersonIdMin = 1;
     public const int FirstNameMax = 50;
     public const int FirstNameMin = 2;
     public const int LastNameMax = 50;
