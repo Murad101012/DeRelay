@@ -3,6 +3,7 @@ using DeRelay.Core.DTOs.Person;
 using DeRelay.Core.Entities;
 using DeRelay.Core.Exceptions;
 using DeRelay.Core.Interfaces;
+using DeRelay.Core.Mappers;
 using Microsoft.EntityFrameworkCore;
 
 namespace DeRelay.Data.Services;
@@ -11,33 +12,16 @@ public class PersonService(DeRelayDbContext deRelayDbContext): IPersonService
 {
     public async Task<int> CreatePersonAsync(CreatePersonDto dto)
     {
-        var newPerson = new Person(
-            firstName: dto.FirstName,
-            lastName: dto.LastName,
-            nickName: dto.Nickname,
-            gender: dto.Gender,
-            dateOfBirth: dto.DateOfBirth);
-        
+        var newPerson = dto.ToEntity();
         deRelayDbContext.Persons.Add(newPerson);
-        
         await deRelayDbContext.SaveChangesAsync();
-        
         return newPerson.Id;
     }
 
     public async Task<ReturnPersonDto> GetPersonAsDtoByIdAsync(int id)
     {
         var person = await GetPersonReadOnlyByIdAsync(id);
-        var returnPersonDto = new ReturnPersonDto(
-            Id: person.Id, 
-            FirstName: person.FirstName,
-            LastName: person.LastName,
-            NickName: person.NickName,
-            Gender: person.Gender,
-            DateOfBirth: person.DateOfBirth,
-            Age: person.Age
-            );
-        return returnPersonDto;
+        return person.ToReturnDto();
     }
 
     public async Task UpdatePersonByIdAsync(int id, UpdatePersonDto dto)
