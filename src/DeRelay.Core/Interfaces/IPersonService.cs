@@ -1,4 +1,5 @@
 using DeRelay.Core.DTOs;
+using DeRelay.Core.DTOs.Person;
 
 namespace DeRelay.Core.Interfaces;
 

@@ -1,4 +1,5 @@
 using DeRelay.Core.DTOs;
+using DeRelay.Core.DTOs.Person;
 using DeRelay.Core.Entities;
 using DeRelay.Core.Exceptions;
 using DeRelay.Core.Interfaces;

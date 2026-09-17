@@ -1,4 +1,5 @@
 using DeRelay.Core.DTOs;
+using DeRelay.Core.DTOs.Person;
 using DeRelay.Core.Interfaces;
 using FluentValidation;
 using Microsoft.AspNetCore.Mvc;

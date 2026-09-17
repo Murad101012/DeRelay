@@ -1,6 +1,6 @@
 using DeRelay.Core.Enums;
 
-namespace DeRelay.Core.DTOs;
+namespace DeRelay.Core.DTOs.Person;
 
 public record ReturnPersonDto(
     int Id,

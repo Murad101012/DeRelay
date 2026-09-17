@@ -1,6 +1,7 @@
 using DeRelay.Core.DTOs;
 using FluentValidation;
 using DeRelay.Core.Constants;
+using DeRelay.Core.DTOs.Person;
 
 namespace DeRelay.Core.Validators;
 
