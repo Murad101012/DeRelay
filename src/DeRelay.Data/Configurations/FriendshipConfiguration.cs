@@ -8,11 +8,11 @@ public class FriendshipConfiguration: IEntityTypeConfiguration<Friendship>
 {
     public void Configure(EntityTypeBuilder<Friendship> builder)
     {
-        builder.HasKey(friendship => new { friendship.UserId, friendship.FriendId });
-        builder.HasOne<Person>().WithMany().HasForeignKey(friendship => friendship.UserId);
-        builder.HasOne<Person>().WithMany().HasForeignKey(friendship => friendship.FriendId);
-        builder.Property(friendship => friendship.UserId).IsRequired();
-        builder.Property(friendship => friendship.FriendId).IsRequired();
+        builder.HasKey(friendship => new { UserId = friendship.User1Id, FriendId = friendship.User2Id });
+        builder.HasOne<Person>().WithMany().HasForeignKey(friendship => friendship.User1Id);
+        builder.HasOne<Person>().WithMany().HasForeignKey(friendship => friendship.User2Id);
+        builder.Property(friendship => friendship.User1Id).IsRequired();
+        builder.Property(friendship => friendship.User2Id).IsRequired();
         builder.Property(friendship => friendship.CreatedOn).IsRequired();
     }
 }
