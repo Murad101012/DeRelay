@@ -1,3 +1,4 @@
+using DeRelay.Core.DTOs.AppUser;
 using DeRelay.Core.DTOs.Person;
 using DeRelay.Core.Entities;
 
@@ -14,7 +15,6 @@ public static class PersonMapper
     /// </summary>
     public static ReturnPersonDto ToReturnDto(this Person person)
         => new(
-            Id: person.Id,
             FirstName: person.FirstName,
             LastName: person.LastName,
             NickName: person.NickName,
@@ -25,12 +25,23 @@ public static class PersonMapper
     /// <summary>
     /// Converts <see cref="CreatePersonDto"/> to <see cref="Person"/> Entity
     /// </summary>
-    public static Person ToEntity(this CreatePersonDto dto)
+    public static Person ToPersonEntity(this CreatePersonDto dto)
         => new(
             firstName: dto.FirstName,
             lastName: dto.LastName,
-            nickName: dto.Nickname,
+            nickName: dto.NickName,
             gender: dto.Gender,
             dateOfBirth: dto.DateOfBirth);
+    
+    /// <summary>
+    /// Converts <see cref="RegisterDto"/> to <see cref="CreatePersonDto"/> Entity
+    /// </summary>
+    public static CreatePersonDto ToCreatePersonDto(this RegisterDto dto)
+        => new(
+            FirstName: dto.FirstName,
+            LastName: dto.LastName,
+            NickName: dto.NickName,
+            Gender: dto.Gender,
+            DateOfBirth: dto.DateOfBirth);
 
 }

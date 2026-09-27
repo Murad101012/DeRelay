@@ -1,4 +1,3 @@
-using DeRelay.Core.DTOs;
 using DeRelay.Core.DTOs.Person;
 using DeRelay.Core.Entities;
 using DeRelay.Core.Exceptions;
@@ -8,56 +7,58 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DeRelay.Data.Services;
 
-public class PersonService(DeRelayDbContext deRelayDbContext): IPersonService
+public class PersonService(
+    DeRelayDbContext deRelayDbContext,
+    IAppUserService iAppUserService): IPersonService
 {
     public async Task<int> CreatePersonAsync(CreatePersonDto dto)
     {
-        var newPerson = dto.ToEntity();
+        var newPerson = dto.ToPersonEntity();
         deRelayDbContext.Persons.Add(newPerson);
         await deRelayDbContext.SaveChangesAsync();
         return newPerson.Id;
     }
 
-    public async Task<ReturnPersonDto> GetPersonAsDtoByIdAsync(int id)
+    public async Task<ReturnPersonDto> GetPersonAsDtoByIdAsync(int appUserId)
     {
-        var person = await GetPersonReadOnlyByIdAsync(id);
+        var appUser = await iAppUserService.ReturnAppUserByIdAsync(appUserId);
+        var person = await GetPersonReadOnlyByIdAsync(appUser.PersonId);
         return person.ToReturnDto();
     }
 
-    public async Task UpdatePersonByIdAsync(int id, UpdatePersonDto dto)
+    public async Task UpdatePersonByIdAsync(int appUserId, UpdatePersonDto dto)
     {
-        var person = await GetPersonByIdAsync(id);
+        var appUser = await iAppUserService.ReturnAppUserByIdAsync(appUserId);
+        var person = await GetPersonByIdAsync(appUser.PersonId);
         person.UpdatePerson(dto.FirstName, dto.LastName, dto.NickName, dto.Gender);
         await deRelayDbContext.SaveChangesAsync();
     }
 
-    public async Task DeletePersonByIdAsync(int id)
+    public async Task DeletePersonByIdAsync(int personId)
     {
-        deRelayDbContext.Persons.Remove(await GetPersonByIdAsync(id));
+        deRelayDbContext.Persons.Remove(await GetPersonByIdAsync(personId));
         await deRelayDbContext.SaveChangesAsync();
     }
     
-    private async Task<Person> GetPersonByIdAsync(int id)
+    private async Task<Person> GetPersonByIdAsync(int personId)
     {
-        return await deRelayDbContext.Persons.FindAsync(id) ?? 
-               throw new NotFoundException($"Person with ID {id} was not found.");
+        return await deRelayDbContext.Persons.FindAsync(personId) ?? 
+               throw new NotFoundException($"Person with ID = {personId} was not found.");
     }
 
-    private async Task<Person> GetPersonReadOnlyByIdAsync(int id)
+    private async Task<Person> GetPersonReadOnlyByIdAsync(int personId)
     {
         return await deRelayDbContext.Persons
             .AsNoTracking()
-            .FirstOrDefaultAsync(person => person.Id == id) ??
-               throw new NotFoundException($"Person with ID {id} was not found.");
+            .FirstOrDefaultAsync(person => person.Id == personId) ??
+               throw new NotFoundException($"Person with ID = {personId} was not found.");
     }
 
     /// <summary>
     /// Checks if person exist in database without loading the actual person
     /// </summary>
-    /// <param name="id"></param>
-    /// <returns></returns>
-    public async Task<bool> PersonExistsAsync(int id)
+    public async Task<bool> PersonExistsAsync(int personId)
     {
-        return await deRelayDbContext.Persons.AnyAsync(person => person.Id == id);
+        return await deRelayDbContext.Persons.AnyAsync(person => person.Id == personId);
     }
 }

@@ -3,7 +3,8 @@ using DeRelay.Core.DTOs.FriendRequest;
 using DeRelay.Core.DTOs.Friendship;
 using DeRelay.Core.Entities;
 using DeRelay.Core.Enums;
-using DeRelay.Core.Validators;
+using DeRelay.Core.Validators.FriendRequest;
+using DeRelay.Core.Validators.Friendship;
 using FluentValidation.TestHelper;
 
 namespace DeRelay.Tests;
@@ -33,30 +34,30 @@ public class FriendFlowTests
             new Person("Jo", "Doe", "jodoe", Gender.Male, DateTime.UtcNow.AddDays(1)));
     }
 
-    // --- Send validator: correct + mistakes ---
+    // --- Send validator (slim DTO: ReceiverId only; self-check lives in service) ---
 
     [Fact]
     public void SendValidator_Correct_Passes()
     {
         var v = new SendFriendRequestDtoValidator();
-        var result = v.TestValidate(new SendFriendRequestDto(1, 2));
+        var result = v.TestValidate(new SendFriendRequestDto(2));
         result.ShouldNotHaveAnyValidationErrors();
-    }
-
-    [Fact]
-    public void SendValidator_SelfRequest_Fails()
-    {
-        var v = new SendFriendRequestDtoValidator();
-        var result = v.TestValidate(new SendFriendRequestDto(5, 5));
-        result.ShouldHaveValidationErrorFor(x => x.ReceiverId);
     }
 
     [Fact]
     public void SendValidator_ZeroId_Fails()
     {
         var v = new SendFriendRequestDtoValidator();
-        var result = v.TestValidate(new SendFriendRequestDto(0, 2));
-        result.ShouldHaveValidationErrorFor(x => x.SenderId);
+        var result = v.TestValidate(new SendFriendRequestDto(0));
+        result.ShouldHaveValidationErrorFor(x => x.ReceiverId);
+    }
+
+    [Fact]
+    public void SendValidator_NegativeId_Fails()
+    {
+        var v = new SendFriendRequestDtoValidator();
+        var result = v.TestValidate(new SendFriendRequestDto(-5));
+        result.ShouldHaveValidationErrorFor(x => x.ReceiverId);
     }
 
     // --- Accept: correct + mistake ---
@@ -65,15 +66,15 @@ public class FriendFlowTests
     public void AcceptValidator_Correct_Passes()
     {
         var v = new AcceptFriendRequestDtoValidator();
-        var result = v.TestValidate(new AcceptFriendRequestDto(1, 2));
+        var result = v.TestValidate(new AcceptFriendRequestDto(2));
         result.ShouldNotHaveAnyValidationErrors();
     }
 
     [Fact]
-    public void AcceptValidator_SelfRequest_Fails()
+    public void AcceptValidator_ZeroId_Fails()
     {
         var v = new AcceptFriendRequestDtoValidator();
-        var result = v.TestValidate(new AcceptFriendRequestDto(3, 3));
+        var result = v.TestValidate(new AcceptFriendRequestDto(0));
         result.ShouldHaveValidationErrorFor(x => x.ReceiverId);
     }
 
@@ -83,15 +84,15 @@ public class FriendFlowTests
     public void DeclineValidator_Correct_Passes()
     {
         var v = new DeclineFriendRequestDtoValidator();
-        var result = v.TestValidate(new DeclineFriendRequestDto(1, 2));
+        var result = v.TestValidate(new DeclineFriendRequestDto(2));
         result.ShouldNotHaveAnyValidationErrors();
     }
 
     [Fact]
-    public void DeclineValidator_SelfRequest_Fails()
+    public void DeclineValidator_ZeroId_Fails()
     {
         var v = new DeclineFriendRequestDtoValidator();
-        var result = v.TestValidate(new DeclineFriendRequestDto(4, 4));
+        var result = v.TestValidate(new DeclineFriendRequestDto(0));
         result.ShouldHaveValidationErrorFor(x => x.ReceiverId);
     }
 
@@ -101,15 +102,15 @@ public class FriendFlowTests
     public void RemoveFriendValidator_Correct_Passes()
     {
         var v = new RemoveFriendDtoValidator();
-        var result = v.TestValidate(new RemoveFriendDto(1, 2));
+        var result = v.TestValidate(new RemoveFriendDto(2));
         result.ShouldNotHaveAnyValidationErrors();
     }
 
     [Fact]
-    public void RemoveFriendValidator_SelfRemove_Fails()
+    public void RemoveFriendValidator_ZeroId_Fails()
     {
         var v = new RemoveFriendDtoValidator();
-        var result = v.TestValidate(new RemoveFriendDto(2, 2));
-        result.ShouldHaveValidationErrorFor(x => x.User1Id);
+        var result = v.TestValidate(new RemoveFriendDto(0));
+        result.ShouldHaveValidationErrorFor(x => x.FriendId);
     }
 }

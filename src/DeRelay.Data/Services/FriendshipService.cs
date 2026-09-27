@@ -9,21 +9,27 @@ namespace DeRelay.Data.Services;
 /// <summary>
 /// Controls Friendship table
 /// </summary>
-public class FriendshipService(DeRelayDbContext deRelayDbContext, IPersonService iPersonService): IFriendshipService
+public class FriendshipService(
+    DeRelayDbContext deRelayDbContext, 
+    IPersonService iPersonService,
+    IAppUserService iAppUserService): IFriendshipService
 {
     //Note: Not using DTO as parameter because this wasn't directly called by user anyway only in-server
-    public async Task AddFriendAsync(int user1Id, int user2Id)
+    public async Task AddFriendAsync(int appUserId, int personId)
     {
+        var appUser = await iAppUserService.ReturnAppUserByIdAsync(appUserId);
+        int friendId = appUser.PersonId;
+        
         //Check sender/receiver is same
-        if(CheckSenderReceiverIdIsSame(user1Id, user2Id))
+        if(CheckSenderReceiverIdIsSame(friendId, personId))
             throw new ValidationException("Same person cannot be friend of itself");
         
         //Check if the person exists
-        await CheckPersonIdIsValid(user1Id);
-        await CheckPersonIdIsValid(user2Id);
+        await CheckPersonIdIsValid(friendId);
+        await CheckPersonIdIsValid(personId);
         
-        int user1IdMin = Math.Min(user1Id, user2Id);
-        int user2IdMax = Math.Max(user1Id, user2Id);
+        int user1IdMin = Math.Min(friendId, personId);
+        int user2IdMax = Math.Max(friendId, personId);
         
         //Check if already in Friendship table and assign to variable
         
@@ -34,36 +40,40 @@ public class FriendshipService(DeRelayDbContext deRelayDbContext, IPersonService
         await deRelayDbContext.SaveChangesAsync();
     }
 
-    public async Task RemoveFriendAsync(RemoveFriendDto dto)
+    public async Task RemoveFriendAsync(int appUserId, RemoveFriendDto dto)
     {
-        if(CheckSenderReceiverIdIsSame(dto.User1Id, dto.User2Id))
+        var appUser = await iAppUserService.ReturnAppUserByIdAsync(appUserId);
+
+        if(CheckSenderReceiverIdIsSame(appUser.PersonId, dto.FriendId))
             throw new ValidationException("Same person cannot be friend of itself");
         
-        await CheckPersonIdIsValid(dto.User1Id);
-        await CheckPersonIdIsValid(dto.User2Id);
+        await CheckPersonIdIsValid(appUser.PersonId);
+        await CheckPersonIdIsValid(dto.FriendId);
         
-        int user1IdMin = Math.Min(dto.User1Id, dto.User2Id);
-        int user2IdMax = Math.Max(dto.User1Id, dto.User2Id);
+        int person1IdMin = Math.Min(appUser.PersonId, dto.FriendId);
+        int person2IdMax = Math.Max(appUser.PersonId, dto.FriendId);
         
         //Check if already in Friendship table and assign to variable
-        var friendShip = await CheckIfAlreadyInFriendshipTable(user1IdMin, user2IdMax) ?? 
-                         throw new NotFoundException("Can't remove friend, it is not your friend");
+        var friendShip = await CheckIfAlreadyInFriendshipTable(person1IdMin, person2IdMax) ?? 
+                         throw new NotFoundException("Can't remove friend, it is already not your friend");
         
         deRelayDbContext.Friendships.Remove(friendShip);
         await deRelayDbContext.SaveChangesAsync();
     }
 
-    public async Task<ReturnFriendsDto> GetAllFriendsOfUserByIdAsync(int userId)
+    public async Task<ReturnFriendsDto> GetAllFriendsOfUserByIdAsync(int appUserId)
     {
-        await CheckPersonIdIsValid(userId);
+        var appUser = await iAppUserService.ReturnAppUserByIdAsync(appUserId);
+        int personId = appUser.PersonId;
+        await CheckPersonIdIsValid(personId);
         return new ReturnFriendsDto(await deRelayDbContext.Friendships
             .AsNoTracking()
-            .Where(x => x.User2Id == userId || x.User1Id == userId)
-            .Select(x => x.User1Id == userId ? x.User2Id : x.User1Id)
+            .Where(x => x.User2Id == personId || x.User1Id == personId)
+            .Select(x => x.User1Id == personId ? x.User2Id : x.User1Id)
             .ToListAsync());
     }
     
-    private bool CheckSenderReceiverIdIsSame(int odt1, int odt2) => odt1 == odt2;
+    private bool CheckSenderReceiverIdIsSame(int person1, int person2) => person1 == person2;
     
     private async Task CheckPersonIdIsValid(int personId)
     {
