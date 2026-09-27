@@ -3,7 +3,7 @@ using DeRelay.Core.DTOs.Person;
 using DeRelay.Core.Entities;
 using DeRelay.Core.Enums;
 using DeRelay.Core.Mappers;
-using DeRelay.Core.Validators;
+using DeRelay.Core.Validators.Person;
 using FluentValidation.TestHelper;
 
 namespace DeRelay.Tests;
@@ -45,7 +45,7 @@ public class PersonTests
         var v = new CreatePersonDtoValidator();
         var dto = new CreatePersonDto("Jo", "Doe", new string('a', 21), Gender.Male, new DateTime(2000, 1, 1));
         var result = v.TestValidate(dto);
-        result.ShouldHaveValidationErrorFor(x => x.Nickname);
+        result.ShouldHaveValidationErrorFor(x => x.NickName);
     }
 
     [Fact]
@@ -76,9 +76,9 @@ public class PersonTests
     public void ToEntity_MapsAllFields()
     {
         var dto = new CreatePersonDto("Jo", "Doe", "jodoe", Gender.Female, new DateTime(2000, 1, 1));
-        var person = dto.ToEntity();
+        var person = dto.ToPersonEntity();
         Assert.Equal(dto.FirstName, person.FirstName);
-        Assert.Equal(dto.Nickname, person.NickName);
+        Assert.Equal(dto.NickName, person.NickName);
         Assert.Equal(dto.Gender, person.Gender);
     }
 }

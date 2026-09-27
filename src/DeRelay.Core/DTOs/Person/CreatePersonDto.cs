@@ -5,7 +5,7 @@ namespace DeRelay.Core.DTOs.Person;
 public record CreatePersonDto(
     string FirstName,
     string LastName,
-    string Nickname,
+    string NickName,
     Gender Gender,
     DateTime DateOfBirth
     );

@@ -4,7 +4,7 @@ namespace DeRelay.Core.Interfaces;
 
 public interface IFriendshipService
 {
-    public Task AddFriendAsync(int user1Id, int user2Id);
-    public Task RemoveFriendAsync(RemoveFriendDto dto);
-    public Task<ReturnFriendsDto> GetAllFriendsOfUserByIdAsync(int userId);
+    public Task AddFriendAsync(int appUserId, int personId);
+    public Task RemoveFriendAsync(int appUserId, RemoveFriendDto dto);
+    public Task<ReturnFriendsDto> GetAllFriendsOfUserByIdAsync(int appUserId);
 }

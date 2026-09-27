@@ -1,5 +1,4 @@
 using DeRelay.Core.DTOs.FriendRequest;
-using DeRelay.Core.DTOs.Friendship;
 using DeRelay.Core.Entities;
 using DeRelay.Core.Exceptions;
 using DeRelay.Core.Interfaces;
@@ -10,87 +9,98 @@ namespace DeRelay.Data.Services;
 /// <summary>
 /// Controls FriendRequests table
 /// </summary>
-public class FriendRequestService(DeRelayDbContext deRelayDbContext, IFriendshipService iFriendshipService,
-    IPersonService iPersonService):
+public class FriendRequestService(
+    DeRelayDbContext deRelayDbContext, 
+    IFriendshipService iFriendshipService,
+    IPersonService iPersonService,
+    IAppUserService iAppUserService):
     IFriendRequestService
 {
-    public async Task SendFriendRequestAsync(SendFriendRequestDto dto)
+    public async Task SendFriendRequestAsync(int appUserId, SendFriendRequestDto dto)
     {
+        var appUser = await iAppUserService.ReturnAppUserByIdAsync(appUserId);
+        
         //Check sender/receiver is same
-        if(CheckSenderReceiverIdIsSame(dto.SenderId, dto.ReceiverId))
+        if(CheckSenderReceiverIdIsSame(appUser.PersonId, dto.ReceiverId))
             throw new ValidationException("You cannot send a friend request to same persons");
         
         //Check if the person exists
-        await ValidatePersonIdIsValid(dto.SenderId);
+        await ValidatePersonIdIsValid(appUser.PersonId);
         await ValidatePersonIdIsValid(dto.ReceiverId);
         
         //Check if already in FriendRequests table
-        if (await CheckIfAlreadyInRequest(dto.SenderId, dto.ReceiverId))
+        if (await CheckIfAlreadyInRequest(appUser.PersonId, dto.ReceiverId))
             throw new AlreadyExistsException("Friend request for these persons are already in proceed");
         
-        var newFriendRequest = new FriendRequest(dto.SenderId, dto.ReceiverId);
+        var newFriendRequest = new FriendRequest(appUser.PersonId, dto.ReceiverId);
         
         deRelayDbContext.Add(newFriendRequest);
         await deRelayDbContext.SaveChangesAsync();
     }
 
-    public async Task AcceptFriendRequestAsync(AcceptFriendRequestDto dto)
+    public async Task AcceptFriendRequestAsync(int appUserId, AcceptFriendRequestDto dto)
     {
+        var appUser = await iAppUserService.ReturnAppUserByIdAsync(appUserId);
+
         //Check sender/receiver is same
-        if(CheckSenderReceiverIdIsSame(dto.SenderId, dto.ReceiverId))
+        if(CheckSenderReceiverIdIsSame(appUser.PersonId, dto.ReceiverId))
             throw new ValidationException("You cannot accept same persons as a friend request");
         
         //Check if the person exists
-        await ValidatePersonIdIsValid(dto.SenderId);
+        await ValidatePersonIdIsValid(appUser.PersonId);
         await ValidatePersonIdIsValid(dto.ReceiverId);
         
         //Check if already in FriendRequests table
-        if (!await CheckIfAlreadyInRequest(dto.SenderId, dto.ReceiverId))
+        if (!await CheckIfAlreadyInRequest(appUser.PersonId, dto.ReceiverId))
             throw new NotFoundException("Couldn't find friend request for these persons to accept");
         
         var friendRequest = 
-            await deRelayDbContext.FriendRequests.FindAsync(dto.SenderId, dto.ReceiverId);
+            await deRelayDbContext.FriendRequests.FindAsync(appUser.PersonId, dto.ReceiverId);
         if (friendRequest == null) throw new NotFoundException("Friend request not found");
-        await iFriendshipService.AddFriendAsync(friendRequest.SenderId, friendRequest.ReceiverId);
+        await iFriendshipService.AddFriendAsync(appUserId, friendRequest.ReceiverId);
         RemoveFriendRequest(friendRequest);
         await deRelayDbContext.SaveChangesAsync();
     }
 
-    public async Task DeclineFriendRequestAsync(DeclineFriendRequestDto dto)
+    public async Task DeclineFriendRequestAsync(int appUserId, DeclineFriendRequestDto dto)
     {
+        var appUser = await iAppUserService.ReturnAppUserByIdAsync(appUserId);
+
         //Check sender/receiver is same
-        if(CheckSenderReceiverIdIsSame(dto.SenderId, dto.ReceiverId))
+        if(CheckSenderReceiverIdIsSame(appUser.PersonId, dto.ReceiverId))
             throw new ValidationException("You cannot decline same persons as a friend request");
         
         //Check if the person exists
-        await ValidatePersonIdIsValid(dto.SenderId);
+        await ValidatePersonIdIsValid(appUser.PersonId);
         await ValidatePersonIdIsValid(dto.ReceiverId);
         
         //Check if already in FriendRequests table
-        if (!await CheckIfAlreadyInRequest(dto.SenderId, dto.ReceiverId))
+        if (!await CheckIfAlreadyInRequest(appUser.PersonId, dto.ReceiverId))
             throw new NotFoundException("Couldn't find friend request for these persons to decline");
         
         var friendRequest = 
-            await deRelayDbContext.FriendRequests.FindAsync(dto.SenderId, dto.ReceiverId);
+            await deRelayDbContext.FriendRequests.FindAsync(appUser.PersonId, dto.ReceiverId);
         if (friendRequest == null) throw new NotFoundException("Friend request not found");
         RemoveFriendRequest(friendRequest);
         await deRelayDbContext.SaveChangesAsync();
     }
 
-    public async Task<ReturnPersonAllFriendRequestReceivedDto> GetAllFriendRequestOfUserReceivedByIdAsync(int userId)
+    public async Task<ReturnPersonAllFriendRequestReceivedDto> GetAllFriendRequestOfUserReceivedByIdAsync(int appUserId)
     {
+        var appUser = await iAppUserService.ReturnAppUserByIdAsync(appUserId);
         return new ReturnPersonAllFriendRequestReceivedDto(await deRelayDbContext.FriendRequests
             .AsNoTracking()
-            .Where(x => x.ReceiverId == userId)
+            .Where(x => x.ReceiverId == appUser.PersonId)
             .Select(x => x.SenderId)
             .ToListAsync());
     }
 
-    public async Task<ReturnPersonAllFriendRequestSentDto> GetAllFriendRequestOfUserSentByIdAsync(int userId)
+    public async Task<ReturnPersonAllFriendRequestSentDto> GetAllFriendRequestOfUserSentByIdAsync(int appUserId)
     {
+        var appUser = await iAppUserService.ReturnAppUserByIdAsync(appUserId);
         return new ReturnPersonAllFriendRequestSentDto(await deRelayDbContext.FriendRequests
             .AsNoTracking()
-            .Where(x => x.SenderId == userId)
+            .Where(x => x.SenderId == appUser.PersonId)
             .Select(x => x.ReceiverId)
             .ToListAsync());
     }

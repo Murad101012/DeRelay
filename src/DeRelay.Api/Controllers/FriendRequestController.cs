@@ -1,11 +1,13 @@
+using DeRelay.Api.Extensions;
 using DeRelay.Core.DTOs.FriendRequest;
-using DeRelay.Core.DTOs.Friendship;
 using DeRelay.Core.Interfaces;
 using FluentValidation;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DeRelay.Api.Controllers;
 
+[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 public class FriendRequestController(
@@ -22,7 +24,7 @@ public class FriendRequestController(
         if (!validate.IsValid) 
             throw new ValidationException(validate.Errors.First().ErrorMessage);
         
-        await iFriendRequestService.SendFriendRequestAsync(dto);
+        await iFriendRequestService.SendFriendRequestAsync(User.GetAppUserId(), dto);
         return Created();
     }
     
@@ -34,7 +36,7 @@ public class FriendRequestController(
         if (!validate.IsValid)
             throw new ValidationException(validate.Errors.First().ErrorMessage);
         
-        await iFriendRequestService.AcceptFriendRequestAsync(dto);
+        await iFriendRequestService.AcceptFriendRequestAsync(User.GetAppUserId(), dto);
         return Created();
     }
 
@@ -46,19 +48,19 @@ public class FriendRequestController(
         if (!validate.IsValid)
             throw new ValidationException(validate.Errors.First().ErrorMessage);
         
-        await iFriendRequestService.DeclineFriendRequestAsync(dto);
+        await iFriendRequestService.DeclineFriendRequestAsync(User.GetAppUserId(), dto);
         return NoContent();
     }
     
-    [HttpGet("sent/{userId:int:min(1)}")]
-    public async Task<ActionResult<ReturnPersonAllFriendRequestSentDto>> GetListOfSendFriendRequest(int userId)
+    [HttpGet("sent")]
+    public async Task<ActionResult<ReturnPersonAllFriendRequestSentDto>> GetListOfSendFriendRequest()
     {
-        return await iFriendRequestService.GetAllFriendRequestOfUserSentByIdAsync(userId);
+        return await iFriendRequestService.GetAllFriendRequestOfUserSentByIdAsync(User.GetAppUserId());
     }
     
-    [HttpGet("received/{userId:int:min(1)}")]
-    public async Task<ActionResult<ReturnPersonAllFriendRequestReceivedDto>> GetListOfReceivedFriendRequest(int userId)
+    [HttpGet("receiver")]
+    public async Task<ActionResult<ReturnPersonAllFriendRequestReceivedDto>> GetListOfReceivedFriendRequest()
     {
-        return await iFriendRequestService.GetAllFriendRequestOfUserReceivedByIdAsync(userId);
+        return await iFriendRequestService.GetAllFriendRequestOfUserReceivedByIdAsync(User.GetAppUserId());
     }
 }

@@ -1,11 +1,14 @@
 
+using DeRelay.Api.Extensions;
 using DeRelay.Core.DTOs.Friendship;
 using DeRelay.Core.Interfaces;
 using FluentValidation;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DeRelay.Api.Controllers;
 
+[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 public class FriendshipController(
@@ -19,13 +22,13 @@ public class FriendshipController(
         if (!validate.IsValid)
             throw new ValidationException(validate.Errors.First().ErrorMessage);
         
-        await iFriendshipService.RemoveFriendAsync(dto);
+        await iFriendshipService.RemoveFriendAsync(User.GetAppUserId(), dto);
         return NoContent();
     }
 
-    [HttpGet("{userId:int}")]
-    public async Task<ActionResult<ReturnFriendsDto>> Get(int userId)
+    [HttpGet]
+    public async Task<ActionResult<ReturnFriendsDto>> Get()
     {
-        return await iFriendshipService.GetAllFriendsOfUserByIdAsync(userId);
+        return await iFriendshipService.GetAllFriendsOfUserByIdAsync(User.GetAppUserId());
     }
 }

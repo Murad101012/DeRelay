@@ -1,13 +1,12 @@
-using DeRelay.Core.Constants;
-using DeRelay.Core.DTOs;
-using DeRelay.Core.DTOs.Person;
 using FluentValidation;
+using DeRelay.Core.Constants;
+using DeRelay.Core.DTOs.Person;
 
-namespace DeRelay.Core.Validators;
+namespace DeRelay.Core.Validators.Person;
 
-public class CreatePersonDtoValidator: AbstractValidator<CreatePersonDto>
+public class UpdatePersonDtoValidator: AbstractValidator<UpdatePersonDto>
 {
-    public CreatePersonDtoValidator()
+    public UpdatePersonDtoValidator()
     {
         RuleFor(x => x.FirstName).
             NotEmpty().WithMessage("First name cannot be empty").
@@ -19,14 +18,11 @@ public class CreatePersonDtoValidator: AbstractValidator<CreatePersonDto>
             MaximumLength(PersonConstraints.LastNameMax).WithMessage($"Last name cannot be longer than {PersonConstraints.LastNameMax}").
             MinimumLength(PersonConstraints.LastNameMin).WithMessage($"Last name must be at least {PersonConstraints.LastNameMin}");
         
-        RuleFor(x => x.Nickname).
+        RuleFor(x => x.NickName).
             NotEmpty().WithMessage("Nickname cannot be empty").
             MinimumLength(PersonConstraints.NickNameMin).WithMessage($"Nickname must be at least {PersonConstraints.NickNameMin}").
             MaximumLength(PersonConstraints.NickNameMax).WithMessage($"Nickname cannot be longer than {PersonConstraints.NickNameMax}");
-        
-        RuleFor(x => x.DateOfBirth).
-            NotEmpty().WithMessage("Date of birth cannot be empty").
-            LessThan(DateTime.UtcNow).WithMessage("Date of birth cannot be in the future");
+
         
         RuleFor(x => x.Gender).
             IsInEnum().WithMessage("Gender is not valid");
