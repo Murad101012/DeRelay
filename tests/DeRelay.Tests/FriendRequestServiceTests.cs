@@ -125,6 +125,35 @@ public class FriendRequestServiceTests
     }
 
     [Fact]
+    public async Task Accept_AsReceiver_Success_CreatesFriendshipRemovesRequest()
+    {
+        // Real-world direction: A sends to B, B (receiver) accepts.
+        // The old suite only accepted as the SENDER — which is why the
+        // directional FindAsync bug survived all 76 tests.
+        await using var scope = new Scope();
+        var (appA, personA, appB, personB) = await SeedTwoUsers(scope.Context);
+        await scope.Service.SendFriendRequestAsync(appA, new SendFriendRequestDto(personB));
+
+        await scope.Service.AcceptFriendRequestAsync(appB, new AcceptFriendRequestDto(personA));
+
+        Assert.Equal(0, await scope.Context.FriendRequests.CountAsync());
+        Assert.Equal(1, await scope.Context.Friendships.CountAsync());
+    }
+
+    [Fact]
+    public async Task Decline_AsReceiver_Success_RemovesRequestNoFriendship()
+    {
+        await using var scope = new Scope();
+        var (appA, personA, appB, personB) = await SeedTwoUsers(scope.Context);
+        await scope.Service.SendFriendRequestAsync(appA, new SendFriendRequestDto(personB));
+
+        await scope.Service.DeclineFriendRequestAsync(appB, new DeclineFriendRequestDto(personA));
+
+        Assert.Equal(0, await scope.Context.FriendRequests.CountAsync());
+        Assert.Equal(0, await scope.Context.Friendships.CountAsync());
+    }
+
+    [Fact]
     public async Task Accept_Missing_Throws()
     {
         await using var scope = new Scope();
