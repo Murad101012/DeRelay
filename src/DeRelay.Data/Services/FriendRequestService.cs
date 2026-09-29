@@ -54,10 +54,11 @@ public class FriendRequestService(
         if (!await CheckIfAlreadyInRequest(appUser.PersonId, dto.ReceiverId))
             throw new NotFoundException("Couldn't find friend request for these persons to accept");
         
-        var friendRequest = 
-            await deRelayDbContext.FriendRequests.FindAsync(appUser.PersonId, dto.ReceiverId);
-        if (friendRequest == null) throw new NotFoundException("Friend request not found");
-        await iFriendshipService.AddFriendAsync(appUserId, friendRequest.ReceiverId);
+        var friendRequest =
+            await deRelayDbContext.FriendRequests.FindAsync(appUser.PersonId, dto.ReceiverId)
+            ?? await deRelayDbContext.FriendRequests.FindAsync(dto.ReceiverId, appUser.PersonId)
+            ?? throw new NotFoundException("Friend request not found");
+        await iFriendshipService.AddFriendAsync(appUserId, dto.ReceiverId);
         RemoveFriendRequest(friendRequest);
         await deRelayDbContext.SaveChangesAsync();
     }
@@ -78,9 +79,10 @@ public class FriendRequestService(
         if (!await CheckIfAlreadyInRequest(appUser.PersonId, dto.ReceiverId))
             throw new NotFoundException("Couldn't find friend request for these persons to decline");
         
-        var friendRequest = 
-            await deRelayDbContext.FriendRequests.FindAsync(appUser.PersonId, dto.ReceiverId);
-        if (friendRequest == null) throw new NotFoundException("Friend request not found");
+        var friendRequest =
+            await deRelayDbContext.FriendRequests.FindAsync(appUser.PersonId, dto.ReceiverId)
+            ?? await deRelayDbContext.FriendRequests.FindAsync(dto.ReceiverId, appUser.PersonId)
+            ?? throw new NotFoundException("Friend request not found");
         RemoveFriendRequest(friendRequest);
         await deRelayDbContext.SaveChangesAsync();
     }
