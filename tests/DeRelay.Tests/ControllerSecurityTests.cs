@@ -46,8 +46,13 @@ public class ControllerSecurityTests : IClassFixture<DeRelayWebFactory>
         var login = await client.PostAsync("/api/Auth/login",
             JsonBody(new { userName = user, password = "cat12345" }));
         Assert.Equal(HttpStatusCode.OK, login.StatusCode);
-        // Body may arrive quoted (JSON string) or raw: accept both.
-        return (await login.Content.ReadAsStringAsync()).Trim('"');
+        using var doc = JsonDocument.Parse(await login.Content.ReadAsStringAsync());
+        foreach (var name in new[] { "jwtToken", "JwtToken", "accessToken", "AccessToken", "token", "Token" })
+            if (doc.RootElement.TryGetProperty(name, out var token) &&
+                token.ValueKind == JsonValueKind.String &&
+                !string.IsNullOrWhiteSpace(token.GetString()))
+                return token.GetString()!;
+        throw new InvalidOperationException("Login response did not contain a JWT access token.");
     }
 
     private static void UseBearer(HttpClient client, string token) =>

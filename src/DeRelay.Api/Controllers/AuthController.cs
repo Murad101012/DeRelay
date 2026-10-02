@@ -1,5 +1,6 @@
 using DeRelay.Api.Extensions;
 using DeRelay.Core.DTOs.AppUser;
+using DeRelay.Core.DTOs.TokenPair;
 using DeRelay.Core.Interfaces;
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
@@ -29,7 +30,7 @@ public class AuthController(
     }
 
     [HttpPost("login")]
-    public async Task<ActionResult<string>> Login([FromBody] LoginDto dto)
+    public async Task<ActionResult<JwtAndRefreshTokensDto>> Login([FromBody] LoginDto dto)
     {
         var validate = await loginValidator.ValidateAsync(dto);
         if (!validate.IsValid)

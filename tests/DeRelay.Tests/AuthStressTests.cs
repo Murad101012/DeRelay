@@ -54,7 +54,7 @@ public class AuthStressTests
         var testCreds = new SigningCredentials(
             new SymmetricSecurityKey(Encoding.UTF8.GetBytes("test-only-secret-at-least-32-bytes!!")),
             SecurityAlgorithms.HmacSha256);
-        return new AuthService(context, new PersonService(context, new AppUserService(context)), new PasswordHasher<AppUser>(), testCreds, new AppUserService(context));
+        return new AuthService(context, new PersonService(context, new AppUserService(context)), new PasswordHasher<AppUser>(), testCreds, new AppUserService(context), new RefreshTokenService(context));
     }
 
     private static (int persons, int users) Counts(string path)

@@ -1,6 +1,7 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using DeRelay.Core.DTOs.AppUser;
+using DeRelay.Core.DTOs.TokenPair;
 using DeRelay.Core.Entities;
 using DeRelay.Core.Exceptions;
 using DeRelay.Core.Interfaces;
@@ -15,7 +16,8 @@ public class AuthService(DeRelayDbContext deRelayDbContext
     ,IPersonService iPersonService
     ,IPasswordHasher<AppUser> passwordHasher
     ,SigningCredentials signingCredentials
-    ,IAppUserService iAppUserService): IAuthService
+    ,IAppUserService iAppUserService
+    ,IRefreshTokenService iRefreshTokenService): IAuthService
 {
     /// <summary>
     /// Register new person and return newly created ID from Persons table
@@ -46,7 +48,7 @@ public class AuthService(DeRelayDbContext deRelayDbContext
         }
     }
 
-    public async Task<string> LoginAsync(LoginDto dto)
+    public async Task<JwtAndRefreshTokensDto> LoginAsync(LoginDto dto)
     {
         var appUser = await iAppUserService.ReturnAppUserByUsername(dto.UserName);
         
@@ -54,6 +56,9 @@ public class AuthService(DeRelayDbContext deRelayDbContext
         if (appUser == null || passwordHasher.VerifyHashedPassword(null!, appUser.PasswordHash, dto.Password) 
             == PasswordVerificationResult.Failed)
             throw new ValidationException("Wrong password or username, please try again");
+        
+        //Creating Refresh Token
+        var returnNewRefreshTokenDto = await iRefreshTokenService.CreateRefreshTokenWithNewFamily(appUser.Id);
 
         var claims = new List<Claim>
         {
@@ -66,8 +71,10 @@ public class AuthService(DeRelayDbContext deRelayDbContext
             claims: claims,
             expires: DateTime.UtcNow.AddMinutes(30),
             signingCredentials: signingCredentials);
-        
-        return new JwtSecurityTokenHandler().WriteToken(token);
+
+        return new JwtAndRefreshTokensDto
+            (JwtToken: new JwtSecurityTokenHandler().WriteToken(token),
+                RefreshToken: returnNewRefreshTokenDto.RefreshToken);
     }
     
     public async Task DeleteAccountAsync(int appUserId)
@@ -79,4 +86,5 @@ public class AuthService(DeRelayDbContext deRelayDbContext
             (await iAppUserService.ReturnAppUserByIdAsync(appUserId)).PersonId);
         await deRelayDbContext.SaveChangesAsync();
     }
+    
 }
