@@ -10,6 +10,7 @@ public class DeRelayDbContext(DbContextOptions<DeRelayDbContext> options) : DbCo
     public DbSet<FriendRequest> FriendRequests { get; set; }
     public DbSet<Friendship> Friendships { get; set; }
     public DbSet<AppUser> AppUsers { get; set; }
+    public DbSet<RefreshToken> RefreshToken { get; set; }
     
     protected override void OnModelCreating(ModelBuilder b)
     {
