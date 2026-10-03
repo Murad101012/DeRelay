@@ -8,7 +8,7 @@ namespace DeRelay.Core.Exceptions;
 /// </para>
 /// </summary>
 /// <example>
-/// Scenario: Trying to rotate with a refresh token whose family already expired.
+/// Scenario: Trying to rotate with a refresh token whose session already expired.
 /// <code>
 /// throw new UnauthorizedException("Session expired, please login again.");
 /// </code>

@@ -11,9 +11,9 @@ public class RefreshTokenConfiguration: IEntityTypeConfiguration<RefreshToken>
         builder.HasKey(r => r.Id);
         builder.HasOne<AppUser>().WithMany().HasForeignKey(r => r.AppUserId);
         builder.HasIndex(r => r.HashedToken);
-        builder.HasIndex(r => r.FamilyId);
-        builder.Property(r => r.FamilyId).IsRequired();
-        builder.Property(r => r.FamilyExpiry).IsRequired();
+        builder.HasIndex(r => r.SessionId);
+        builder.Property(r => r.SessionId).IsRequired();
+        builder.Property(r => r.SessionExpiry).IsRequired();
         builder.Property(r => r.AppUserId).IsRequired();
         builder.Property(r => r.HashedToken).IsRequired();
         builder.Property(r => r.IsRevoked).HasDefaultValue(false);

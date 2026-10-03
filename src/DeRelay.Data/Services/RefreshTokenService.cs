@@ -11,7 +11,7 @@ namespace DeRelay.Data.Services;
 
 public class RefreshTokenService(DeRelayDbContext deRelayDbContext): IRefreshTokenService
 {
-    public async Task<ReturnNewRefreshTokenDto> CreateRefreshTokenWithNewFamily(int appUserId)
+    public async Task<ReturnNewRefreshTokenDto> CreateRefreshTokenWithNewSession(int appUserId)
     {
         var refreshTokenObject = CreateNewRefreshToken(Guid.NewGuid(), appUserId);
         await deRelayDbContext.SaveChangesAsync();
@@ -21,7 +21,7 @@ public class RefreshTokenService(DeRelayDbContext deRelayDbContext): IRefreshTok
     /*TODO: KNOWN PROBLEM: if User holding T refresh token and attacker also holding same token and..
       if they send at the same millisecond both of them can get valid Refresh Token. Since this accident can be
       very unlikely to be happen, for now it's postponed*/
-    public async Task<ReturnNewRefreshTokenDto> RefreshTheRefreshTokenOfExistingFamily(UserRefreshTokenDto userRefreshTokenDto)
+    public async Task<ReturnNewRefreshTokenDto> RefreshTheRefreshTokenOfExistingSession(UserRefreshTokenDto userRefreshTokenDto)
     {
         //Turning User's token to hashed version to compare
         var hashedRefreshToken = TurnUserRefreshTokenToHashedVersion(userRefreshTokenDto.RefreshToken);
@@ -32,7 +32,7 @@ public class RefreshTokenService(DeRelayDbContext deRelayDbContext): IRefreshTok
         if (oldRefreshToken.IsRevoked)
         {
             var refreshTokens = await deRelayDbContext.RefreshToken.
-                Where(rf => rf.FamilyId == oldRefreshToken.FamilyId).ToListAsync();
+                Where(rf => rf.SessionId == oldRefreshToken.SessionId).ToListAsync();
             deRelayDbContext.RefreshToken.RemoveRange(refreshTokens);
             await deRelayDbContext.SaveChangesAsync();
             throw new UnauthorizedException("Session compromised, please login again.");
@@ -43,7 +43,7 @@ public class RefreshTokenService(DeRelayDbContext deRelayDbContext): IRefreshTok
         //If exist we "disable" the token
         oldRefreshToken.ChangeTokenToRevoked();
         //And create new one
-        var refreshToken = CreateNewRefreshToken(oldRefreshToken.FamilyId, oldRefreshToken.AppUserId);
+        var refreshToken = CreateNewRefreshToken(oldRefreshToken.SessionId, oldRefreshToken.AppUserId);
         await deRelayDbContext.SaveChangesAsync();
         return refreshToken.ToReturnNewRefreshTokenDto();
     }
@@ -63,24 +63,23 @@ public class RefreshTokenService(DeRelayDbContext deRelayDbContext): IRefreshTok
         var allSessions =
             await deRelayDbContext.RefreshToken.Where
                     (t => t.AppUserId == appUserId && !t.IsRevoked)
-                .Select(token => new {token.FamilyId, token.FamilyExpiry}).ToListAsync();
-        if(allSessions.Count == 0) throw new NotFoundException("Session not found");
+                .Select(token => new { SessionId = token.SessionId, SessionExpiry = token.SessionExpiry }).ToListAsync();
 
         var returnSessionDtos = new List<ReturnSessionDto>();
         for (var i = 0; i < allSessions.Count; i++)
         {
             returnSessionDtos.Add(new ReturnSessionDto(
-                SessionId: allSessions[i].FamilyId, 
-                SessionExpires: allSessions[i].FamilyExpiry));
+                SessionId: allSessions[i].SessionId, 
+                SessionExpires: allSessions[i].SessionExpiry));
         }
         return returnSessionDtos;
     }
 
-    public async Task DeleteSessionAsync(Guid familyId, int appUserId)
+    public async Task DeleteSessionAsync(Guid sessionId, int appUserId)
     {
         var refreshToken = 
             await deRelayDbContext.RefreshToken.
-                Where(t => t.FamilyId == familyId && t.AppUserId == appUserId).ToListAsync();
+                Where(t => t.SessionId == sessionId && t.AppUserId == appUserId).ToListAsync();
         if (refreshToken.Count == 0) throw new NotFoundException("Session not found");
         deRelayDbContext.RefreshToken.RemoveRange(refreshToken);
         await deRelayDbContext.SaveChangesAsync();
@@ -92,11 +91,11 @@ public class RefreshTokenService(DeRelayDbContext deRelayDbContext): IRefreshTok
         return Convert.ToBase64String(randomBytes);
     }
 
-    private string CreateNewRefreshToken(Guid familyId, int appUserId)
+    private string CreateNewRefreshToken(Guid sessionId, int appUserId)
     {
         var refreshToken = GenerateRefreshToken();
         deRelayDbContext.Add(new RefreshToken(
-            familyId, 
+            sessionId, 
             appUserId, 
             TurnUserRefreshTokenToHashedVersion(refreshToken)));
         return refreshToken;
@@ -110,7 +109,7 @@ public class RefreshTokenService(DeRelayDbContext deRelayDbContext): IRefreshTok
 
     private void ValidateRefreshToken(RefreshToken refreshToken)
     {
-        if(refreshToken.FamilyExpiry <= DateTime.UtcNow)
+        if(refreshToken.SessionExpiry <= DateTime.UtcNow)
             throw new UnauthorizedException("Session couldn't find or expired, please login again.");
     }
 }

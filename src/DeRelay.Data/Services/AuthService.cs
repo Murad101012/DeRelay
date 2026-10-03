@@ -59,7 +59,7 @@ public class AuthService(DeRelayDbContext deRelayDbContext
             throw new ValidationException("Wrong password or username, please try again");
         
         //Creating Refresh Token
-        var returnNewRefreshTokenDto = await iRefreshTokenService.CreateRefreshTokenWithNewFamily(appUser.Id);
+        var returnNewRefreshTokenDto = await iRefreshTokenService.CreateRefreshTokenWithNewSession(appUser.Id);
 
         return new JwtAndRefreshTokensDto
             (JwtToken: GenerateJwtToken(appUser), RefreshToken: returnNewRefreshTokenDto.RefreshToken);
@@ -78,7 +78,7 @@ public class AuthService(DeRelayDbContext deRelayDbContext
     public async Task<JwtAndRefreshTokensDto> RefreshJwtAndRefreshTokensAsync
         (UserRefreshTokenDto dto)
     {
-        var returnNewRefreshTokenDto = await iRefreshTokenService.RefreshTheRefreshTokenOfExistingFamily(dto);
+        var returnNewRefreshTokenDto = await iRefreshTokenService.RefreshTheRefreshTokenOfExistingSession(dto);
         var refreshToken = await iRefreshTokenService.
             GetRefreshTokenObjectFromUserRefreshTokenString(returnNewRefreshTokenDto.RefreshToken);
         var appUser = await iAppUserService.ReturnAppUserByIdAsync(refreshToken.AppUserId);

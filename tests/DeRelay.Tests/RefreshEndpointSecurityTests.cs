@@ -100,7 +100,7 @@ public class RefreshEndpointSecurityTests : IClassFixture<DeRelayWebFactory>
     }
 
     [Fact]
-    public async Task Refresh_ReplayConsumed_401FamilyDead()
+    public async Task Refresh_ReplayConsumed_401SessionDead()
     {
         var client = _factory.CreateClient();
         var (_, oldRefresh) = await RegisterAndLogin(client, "rep" + Tag());
@@ -111,7 +111,7 @@ public class RefreshEndpointSecurityTests : IClassFixture<DeRelayWebFactory>
             JsonBody(new { refreshToken = oldRefresh }));
         Assert.Equal(HttpStatusCode.Unauthorized, replay.StatusCode);
 
-        // Tripwire fired: even the live head died with its family.
+        // Tripwire fired: even the live head died with its session.
         var afterKill = await client.PostAsync("/api/Auth/refresh",
             JsonBody(new { refreshToken = liveRefresh }));
         Assert.Equal(HttpStatusCode.NotFound, afterKill.StatusCode);
