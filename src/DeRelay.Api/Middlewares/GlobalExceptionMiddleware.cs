@@ -61,6 +61,10 @@ public class GlobalExceptionMiddleware
                     problemDetails.Status = StatusCodes.Status400BadRequest;
                     problemDetails.Title = "Invalid Request Parameter";
                     break;
+                case UnauthorizedException:
+                    problemDetails.Status = StatusCodes.Status401Unauthorized;
+                    problemDetails.Title = "Unauthorized";
+                    break;
                 case AlreadyExistsException:
                     problemDetails.Status = StatusCodes.Status409Conflict;
                     problemDetails.Title = "Already Exists";

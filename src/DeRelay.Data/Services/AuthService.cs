@@ -1,6 +1,8 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using DeRelay.Core.DTOs.AppUser;
+using DeRelay.Core.DTOs.RefreshToken;
+using DeRelay.Core.DTOs.TokenPair;
 using DeRelay.Core.Entities;
 using DeRelay.Core.Exceptions;
 using DeRelay.Core.Interfaces;
@@ -15,7 +17,8 @@ public class AuthService(DeRelayDbContext deRelayDbContext
     ,IPersonService iPersonService
     ,IPasswordHasher<AppUser> passwordHasher
     ,SigningCredentials signingCredentials
-    ,IAppUserService iAppUserService): IAuthService
+    ,IAppUserService iAppUserService
+    ,IRefreshTokenService iRefreshTokenService): IAuthService
 {
     /// <summary>
     /// Register new person and return newly created ID from Persons table
@@ -46,7 +49,7 @@ public class AuthService(DeRelayDbContext deRelayDbContext
         }
     }
 
-    public async Task<string> LoginAsync(LoginDto dto)
+    public async Task<JwtAndRefreshTokensDto> LoginAsync(LoginDto dto)
     {
         var appUser = await iAppUserService.ReturnAppUserByUsername(dto.UserName);
         
@@ -54,20 +57,12 @@ public class AuthService(DeRelayDbContext deRelayDbContext
         if (appUser == null || passwordHasher.VerifyHashedPassword(null!, appUser.PasswordHash, dto.Password) 
             == PasswordVerificationResult.Failed)
             throw new ValidationException("Wrong password or username, please try again");
-
-        var claims = new List<Claim>
-        {
-                     //NOTE: JwtRegisteredClaimNames are just returning strings
-            new(JwtRegisteredClaimNames.Name, appUser.UserName),
-            new(JwtRegisteredClaimNames.Sub, appUser.Id.ToString())
-        };
-
-        var token = new JwtSecurityToken(
-            claims: claims,
-            expires: DateTime.UtcNow.AddMinutes(30),
-            signingCredentials: signingCredentials);
         
-        return new JwtSecurityTokenHandler().WriteToken(token);
+        //Creating Refresh Token
+        var returnNewRefreshTokenDto = await iRefreshTokenService.CreateRefreshTokenWithNewSession(appUser.Id);
+
+        return new JwtAndRefreshTokensDto
+            (JwtToken: GenerateJwtToken(appUser), RefreshToken: returnNewRefreshTokenDto.RefreshToken);
     }
     
     public async Task DeleteAccountAsync(int appUserId)
@@ -78,5 +73,34 @@ public class AuthService(DeRelayDbContext deRelayDbContext
         await iPersonService.DeletePersonByIdAsync(
             (await iAppUserService.ReturnAppUserByIdAsync(appUserId)).PersonId);
         await deRelayDbContext.SaveChangesAsync();
+    }
+
+    public async Task<JwtAndRefreshTokensDto> RefreshJwtAndRefreshTokensAsync
+        (UserRefreshTokenDto dto)
+    {
+        var returnNewRefreshTokenDto = await iRefreshTokenService.RefreshTheRefreshTokenOfExistingSession(dto);
+        var refreshToken = await iRefreshTokenService.
+            GetRefreshTokenObjectFromUserRefreshTokenString(returnNewRefreshTokenDto.RefreshToken);
+        var appUser = await iAppUserService.ReturnAppUserByIdAsync(refreshToken.AppUserId);
+
+        return new JwtAndRefreshTokensDto
+            (JwtToken: GenerateJwtToken(appUser), RefreshToken: returnNewRefreshTokenDto.RefreshToken);
+    }
+
+    private string GenerateJwtToken(AppUser appUser)
+    {
+        var claims = new List<Claim>
+        {
+            //NOTE: JwtRegisteredClaimNames are just returning strings
+            new(JwtRegisteredClaimNames.Name, appUser.UserName),
+            new(JwtRegisteredClaimNames.Sub, appUser.Id.ToString())
+        };
+
+        var token = new JwtSecurityToken(
+            claims: claims,
+            expires: DateTime.UtcNow.AddMinutes(30),
+            signingCredentials: signingCredentials);
+        
+        return new JwtSecurityTokenHandler().WriteToken(token);
     }
 }

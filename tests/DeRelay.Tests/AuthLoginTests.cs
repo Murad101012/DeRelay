@@ -43,7 +43,7 @@ public class AuthLoginTests
                 new SymmetricSecurityKey(Encoding.UTF8.GetBytes("test-only-secret-at-least-32-bytes!!")),
                 SecurityAlgorithms.HmacSha256);
             Service = new AuthService(Context, personService,
-                new PasswordHasher<AppUser>(), creds, appUserService);
+                new PasswordHasher<AppUser>(), creds, appUserService, new RefreshTokenService(Context));
         }
         public string DbPath => _path;
         public async ValueTask DisposeAsync()
@@ -63,9 +63,11 @@ public class AuthLoginTests
         await using var scope = new Scope();
         var userId = await scope.Service.RegisterAsync(ValidRegister());
 
-        var jwt = await scope.Service.LoginAsync(new LoginDto("aysel97", "cat12345"));
+        var pair = await scope.Service.LoginAsync(new LoginDto("aysel97", "cat12345"));
+        var jwt = pair.JwtToken;
 
         Assert.False(string.IsNullOrWhiteSpace(jwt));
+        Assert.False(string.IsNullOrWhiteSpace(pair.RefreshToken));
         Assert.Equal(3, jwt.Split('.').Length); // header.payload.signature
         var read = new JwtSecurityTokenHandler().ReadJwtToken(jwt);
         Assert.Equal(userId.ToString(), read.Claims.First(c => c.Type == "sub").Value);
@@ -78,7 +80,8 @@ public class AuthLoginTests
         await using var scope = new Scope();
         await scope.Service.RegisterAsync(ValidRegister());
 
-        var jwt = await scope.Service.LoginAsync(new LoginDto("aysel97", "cat12345"));
+        var pair = await scope.Service.LoginAsync(new LoginDto("aysel97", "cat12345"));
+        var jwt = pair.JwtToken;
 
         var read = new JwtSecurityTokenHandler().ReadJwtToken(jwt);
         // Mint sets exp only (no nbf/iat), so ValidFrom defaults to MinValue:
@@ -116,12 +119,12 @@ public class AuthLoginTests
             await using var s = new Scope(scope.DbPath);
             return await s.Service.LoginAsync(new LoginDto("aysel97", "cat12345"));
         })).ToArray();
-        var tokens = await Task.WhenAll(tasks);
+        var pairs = await Task.WhenAll(tasks);
 
-        Assert.All(tokens, t => Assert.False(string.IsNullOrWhiteSpace(t)));
-        foreach (var t in tokens)
+        Assert.All(pairs, p => Assert.False(string.IsNullOrWhiteSpace(p.JwtToken)));
+        foreach (var p in pairs)
             Assert.Equal(userId.ToString(),
-                new JwtSecurityTokenHandler().ReadJwtToken(t).Claims.First(c => c.Type == "sub").Value);
+                new JwtSecurityTokenHandler().ReadJwtToken(p.JwtToken).Claims.First(c => c.Type == "sub").Value);
     }
 
     [Fact]
