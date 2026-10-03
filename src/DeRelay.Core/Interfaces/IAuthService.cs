@@ -1,12 +1,17 @@
 using DeRelay.Core.DTOs.AppUser;
+using DeRelay.Core.DTOs.RefreshToken;
 using DeRelay.Core.DTOs.TokenPair;
+using DeRelay.Core.Entities;
 
 namespace DeRelay.Core.Interfaces;
 
-//NOTE: Didn't named IAppUserService, because class 
 public interface IAuthService
 {
     public Task<int> RegisterAsync(RegisterDto dto);
-    public Task<JwtAndRefreshTokensDto > LoginAsync(LoginDto dto);
+    public Task<JwtAndRefreshTokensDto> LoginAsync(LoginDto dto);
     public Task DeleteAccountAsync(int appUserId);
+
+    public Task<JwtAndRefreshTokensDto> RefreshJwtAndRefreshTokensAsync
+        (UserRefreshTokenDto dto);
+
 }

@@ -1,6 +1,7 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using DeRelay.Core.DTOs.AppUser;
+using DeRelay.Core.DTOs.RefreshToken;
 using DeRelay.Core.DTOs.TokenPair;
 using DeRelay.Core.Entities;
 using DeRelay.Core.Exceptions;
@@ -60,21 +61,8 @@ public class AuthService(DeRelayDbContext deRelayDbContext
         //Creating Refresh Token
         var returnNewRefreshTokenDto = await iRefreshTokenService.CreateRefreshTokenWithNewFamily(appUser.Id);
 
-        var claims = new List<Claim>
-        {
-                     //NOTE: JwtRegisteredClaimNames are just returning strings
-            new(JwtRegisteredClaimNames.Name, appUser.UserName),
-            new(JwtRegisteredClaimNames.Sub, appUser.Id.ToString())
-        };
-
-        var token = new JwtSecurityToken(
-            claims: claims,
-            expires: DateTime.UtcNow.AddMinutes(30),
-            signingCredentials: signingCredentials);
-
         return new JwtAndRefreshTokensDto
-            (JwtToken: new JwtSecurityTokenHandler().WriteToken(token),
-                RefreshToken: returnNewRefreshTokenDto.RefreshToken);
+            (JwtToken: GenerateJwtToken(appUser), RefreshToken: returnNewRefreshTokenDto.RefreshToken);
     }
     
     public async Task DeleteAccountAsync(int appUserId)
@@ -86,5 +74,33 @@ public class AuthService(DeRelayDbContext deRelayDbContext
             (await iAppUserService.ReturnAppUserByIdAsync(appUserId)).PersonId);
         await deRelayDbContext.SaveChangesAsync();
     }
-    
+
+    public async Task<JwtAndRefreshTokensDto> RefreshJwtAndRefreshTokensAsync
+        (UserRefreshTokenDto dto)
+    {
+        var returnNewRefreshTokenDto = await iRefreshTokenService.RefreshTheRefreshTokenOfExistingFamily(dto);
+        var refreshToken = await iRefreshTokenService.
+            GetRefreshTokenObjectFromUserRefreshTokenString(returnNewRefreshTokenDto.RefreshToken);
+        var appUser = await iAppUserService.ReturnAppUserByIdAsync(refreshToken.AppUserId);
+
+        return new JwtAndRefreshTokensDto
+            (JwtToken: GenerateJwtToken(appUser), RefreshToken: returnNewRefreshTokenDto.RefreshToken);
+    }
+
+    private string GenerateJwtToken(AppUser appUser)
+    {
+        var claims = new List<Claim>
+        {
+            //NOTE: JwtRegisteredClaimNames are just returning strings
+            new(JwtRegisteredClaimNames.Name, appUser.UserName),
+            new(JwtRegisteredClaimNames.Sub, appUser.Id.ToString())
+        };
+
+        var token = new JwtSecurityToken(
+            claims: claims,
+            expires: DateTime.UtcNow.AddMinutes(30),
+            signingCredentials: signingCredentials);
+        
+        return new JwtSecurityTokenHandler().WriteToken(token);
+    }
 }

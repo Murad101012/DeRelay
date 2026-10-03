@@ -1,5 +1,6 @@
 using DeRelay.Api.Extensions;
 using DeRelay.Core.DTOs.AppUser;
+using DeRelay.Core.DTOs.RefreshToken;
 using DeRelay.Core.DTOs.TokenPair;
 using DeRelay.Core.Interfaces;
 using FluentValidation;
@@ -17,7 +18,8 @@ namespace DeRelay.Api.Controllers;
 public class AuthController(
     IAuthService iAuthService,
     IValidator<RegisterDto> registerValidator,
-    IValidator<LoginDto> loginValidator): ControllerBase
+    IValidator<LoginDto> loginValidator,
+    IValidator<UserRefreshTokenDto> userRefreshTokenValidator): ControllerBase
 {
     [HttpPost("register")]
     public async Task<ActionResult<int>> Register([FromBody] RegisterDto dto)
@@ -45,5 +47,14 @@ public class AuthController(
     {
         await iAuthService.DeleteAccountAsync(User.GetAppUserId());
         return NoContent();
+    }
+    
+    [HttpPost("refresh")]
+    public async Task<ActionResult<JwtAndRefreshTokensDto>> Refresh([FromBody] UserRefreshTokenDto dto)
+    {
+        var validate = await userRefreshTokenValidator.ValidateAsync(dto);
+        return !validate.IsValid ? 
+            throw new ValidationException(validate.Errors.First().ErrorMessage) : 
+            StatusCode(200, await iAuthService.RefreshJwtAndRefreshTokensAsync(dto));
     }
 }

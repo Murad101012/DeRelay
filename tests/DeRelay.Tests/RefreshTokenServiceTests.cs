@@ -70,14 +70,14 @@ public class RefreshTokenServiceTests
         var appUserId = await SeedAppUser(scope.Context);
         var first = await scope.Service.CreateRefreshTokenWithNewFamily(appUserId);
 
-        var second = await scope.Service.RefreshTokenOfExistingFamily(new UserRefreshTokenDto(first.RefreshToken));
+        var second = await scope.Service.RefreshTheRefreshTokenOfExistingFamily(new UserRefreshTokenDto(first.RefreshToken));
 
         Assert.NotEqual(first.RefreshToken, second.RefreshToken);
         var rows = await scope.Context.RefreshToken.ToListAsync();
         Assert.Equal(2, rows.Count);
         Assert.Single(rows.Where(r => r.IsRevoked));
         // New token is live: rotates again.
-        var third = await scope.Service.RefreshTokenOfExistingFamily(new UserRefreshTokenDto(second.RefreshToken));
+        var third = await scope.Service.RefreshTheRefreshTokenOfExistingFamily(new UserRefreshTokenDto(second.RefreshToken));
         Assert.NotEqual(second.RefreshToken, third.RefreshToken);
     }
 
@@ -87,16 +87,16 @@ public class RefreshTokenServiceTests
         await using var scope = new Scope();
         var appUserId = await SeedAppUser(scope.Context);
         var first = await scope.Service.CreateRefreshTokenWithNewFamily(appUserId);
-        var second = await scope.Service.RefreshTokenOfExistingFamily(new UserRefreshTokenDto(first.RefreshToken));
+        var second = await scope.Service.RefreshTheRefreshTokenOfExistingFamily(new UserRefreshTokenDto(first.RefreshToken));
 
         // Attacker or lagging client replays the consumed token.
-        await Assert.ThrowsAsync<AlreadyExistsException>(() =>
-            scope.Service.RefreshTokenOfExistingFamily(new UserRefreshTokenDto(first.RefreshToken)));
+        await Assert.ThrowsAsync<UnauthorizedException>(() =>
+            scope.Service.RefreshTheRefreshTokenOfExistingFamily(new UserRefreshTokenDto(first.RefreshToken)));
 
         Assert.Equal(0, await scope.Context.RefreshToken.CountAsync());
         // Even the live token died with its family.
         await Assert.ThrowsAsync<NotFoundException>(() =>
-            scope.Service.RefreshTokenOfExistingFamily(new UserRefreshTokenDto(second.RefreshToken)));
+            scope.Service.RefreshTheRefreshTokenOfExistingFamily(new UserRefreshTokenDto(second.RefreshToken)));
     }
 
     [Fact]
@@ -106,7 +106,7 @@ public class RefreshTokenServiceTests
         await SeedAppUser(scope.Context);
 
         await Assert.ThrowsAsync<NotFoundException>(() =>
-            scope.Service.RefreshTokenOfExistingFamily(new UserRefreshTokenDto("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=")));
+            scope.Service.RefreshTheRefreshTokenOfExistingFamily(new UserRefreshTokenDto("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=")));
     }
 
     [Fact]
@@ -116,14 +116,14 @@ public class RefreshTokenServiceTests
         var appUserId = await SeedAppUser(scope.Context);
         var familyA = await scope.Service.CreateRefreshTokenWithNewFamily(appUserId);
         var familyB = await scope.Service.CreateRefreshTokenWithNewFamily(appUserId);
-        var familyA2 = await scope.Service.RefreshTokenOfExistingFamily(new UserRefreshTokenDto(familyA.RefreshToken));
+        var familyA2 = await scope.Service.RefreshTheRefreshTokenOfExistingFamily(new UserRefreshTokenDto(familyA.RefreshToken));
 
         // Kill family A by replaying its consumed head.
-        await Assert.ThrowsAsync<AlreadyExistsException>(() =>
-            scope.Service.RefreshTokenOfExistingFamily(new UserRefreshTokenDto(familyA.RefreshToken)));
+        await Assert.ThrowsAsync<UnauthorizedException>(() =>
+            scope.Service.RefreshTheRefreshTokenOfExistingFamily(new UserRefreshTokenDto(familyA.RefreshToken)));
 
         // Family B lives on, untouched.
-        var familyB2 = await scope.Service.RefreshTokenOfExistingFamily(new UserRefreshTokenDto(familyB.RefreshToken));
+        var familyB2 = await scope.Service.RefreshTheRefreshTokenOfExistingFamily(new UserRefreshTokenDto(familyB.RefreshToken));
         Assert.NotEqual(familyB.RefreshToken, familyB2.RefreshToken);
         Assert.Equal(1, await scope.Context.RefreshToken.CountAsync(r => !r.IsRevoked));
         _ = familyA2;
