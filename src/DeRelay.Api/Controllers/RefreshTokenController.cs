@@ -3,9 +3,11 @@ using DeRelay.Core.DTOs.RefreshToken;
 using DeRelay.Core.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace DeRelay.Api.Controllers;
 
+[EnableRateLimiting("after-login")]
 [Authorize]
 [ApiController]
 [Route("api/[controller]")]

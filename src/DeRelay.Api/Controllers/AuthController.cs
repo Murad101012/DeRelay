@@ -6,6 +6,7 @@ using DeRelay.Core.Interfaces;
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using ValidationException = DeRelay.Core.Exceptions.ValidationException;
 
 namespace DeRelay.Api.Controllers;
@@ -22,6 +23,7 @@ public class AuthController(
     IValidator<UserRefreshTokenDto> userRefreshTokenValidator): ControllerBase
 {
     [HttpPost("register")]
+    [EnableRateLimiting("register")]
     public async Task<ActionResult<int>> Register([FromBody] RegisterDto dto)
     {
         var validate = await registerValidator.ValidateAsync(dto);
@@ -32,6 +34,7 @@ public class AuthController(
     }
 
     [HttpPost("login")]
+    [EnableRateLimiting("login-tight")]
     public async Task<ActionResult<JwtAndRefreshTokensDto>> Login([FromBody] LoginDto dto)
     {
         var validate = await loginValidator.ValidateAsync(dto);
@@ -42,6 +45,7 @@ public class AuthController(
     }
 
     [Authorize]
+    [EnableRateLimiting("after-login")]
     [HttpDelete]
     public async Task<IActionResult> Delete()
     {
@@ -50,6 +54,7 @@ public class AuthController(
     }
     
     [HttpPost("refresh")]
+    [EnableRateLimiting("refresh")]
     public async Task<ActionResult<JwtAndRefreshTokensDto>> Refresh([FromBody] UserRefreshTokenDto dto)
     {
         var validate = await userRefreshTokenValidator.ValidateAsync(dto);
