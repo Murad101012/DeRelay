@@ -10,12 +10,9 @@ using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace DeRelay.Tests;
 
-public class RefreshEndpointSecurityTests : IClassFixture<DeRelayWebFactory>
+public class RefreshEndpointSecurityTests
 {
-    private readonly DeRelayWebFactory _factory;
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
-
-    public RefreshEndpointSecurityTests(DeRelayWebFactory factory) => _factory = factory;
 
     private static string Tag() => Guid.NewGuid().ToString("N")[..8];
 
@@ -87,7 +84,8 @@ public class RefreshEndpointSecurityTests : IClassFixture<DeRelayWebFactory>
     [Fact]
     public async Task Refresh_Rotation_NewPairLiveOldDead()
     {
-        var client = _factory.CreateClient();
+        using var factory = new DeRelayWebFactory();
+        var client = factory.CreateClient();
         var (_, oldRefresh) = await RegisterAndLogin(client, "rot" + Tag());
 
         var (jwt2, refresh2) = await Refresh(client, oldRefresh);
@@ -102,7 +100,8 @@ public class RefreshEndpointSecurityTests : IClassFixture<DeRelayWebFactory>
     [Fact]
     public async Task Refresh_ReplayConsumed_401SessionDead()
     {
-        var client = _factory.CreateClient();
+        using var factory = new DeRelayWebFactory();
+        var client = factory.CreateClient();
         var (_, oldRefresh) = await RegisterAndLogin(client, "rep" + Tag());
         var (_, liveRefresh) = await Refresh(client, oldRefresh);
 
@@ -120,7 +119,8 @@ public class RefreshEndpointSecurityTests : IClassFixture<DeRelayWebFactory>
     [Fact]
     public async Task Refresh_UnknownToken_404()
     {
-        var client = _factory.CreateClient();
+        using var factory = new DeRelayWebFactory();
+        var client = factory.CreateClient();
         var res = await client.PostAsync("/api/Auth/refresh",
             JsonBody(new { refreshToken = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=" }));
         Assert.Equal(HttpStatusCode.NotFound, res.StatusCode);
@@ -129,7 +129,8 @@ public class RefreshEndpointSecurityTests : IClassFixture<DeRelayWebFactory>
     [Fact]
     public async Task Refresh_EmptyToken_400()
     {
-        var client = _factory.CreateClient();
+        using var factory = new DeRelayWebFactory();
+        var client = factory.CreateClient();
         var res = await client.PostAsync("/api/Auth/refresh",
             JsonBody(new { refreshToken = "" }));
         Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
@@ -138,8 +139,9 @@ public class RefreshEndpointSecurityTests : IClassFixture<DeRelayWebFactory>
     [Fact]
     public async Task Sessions_CrossUserDelete_404VictimIntact()
     {
-        var clientA = _factory.CreateClient();
-        var clientB = _factory.CreateClient();
+        using var factory = new DeRelayWebFactory();
+        var clientA = factory.CreateClient();
+        var clientB = factory.CreateClient();
         var (_, refreshA) = await RegisterAndLogin(clientA, "vic" + Tag());
         await RegisterAndLogin(clientB, "atk" + Tag());
 
@@ -155,7 +157,8 @@ public class RefreshEndpointSecurityTests : IClassFixture<DeRelayWebFactory>
     [Fact]
     public async Task Sessions_Logout_KillsTokenServerSide()
     {
-        var client = _factory.CreateClient();
+        using var factory = new DeRelayWebFactory();
+        var client = factory.CreateClient();
         var (_, refresh) = await RegisterAndLogin(client, "out" + Tag());
 
         var session = (await Sessions(client)).Single();

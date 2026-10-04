@@ -16,12 +16,9 @@ using DeRelay.Data;
 
 namespace DeRelay.Tests;
 
-public class ControllerSecurityTests : IClassFixture<DeRelayWebFactory>
+public class ControllerSecurityTests
 {
-    private readonly DeRelayWebFactory _factory;
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
-
-    public ControllerSecurityTests(DeRelayWebFactory factory) => _factory = factory;
 
     private static string Tag() => Guid.NewGuid().ToString("N")[..8];
 
@@ -70,7 +67,8 @@ public class ControllerSecurityTests : IClassFixture<DeRelayWebFactory>
     [Fact]
     public async Task SignInFlow_LockedEndpoint_200()
     {
-        var client = _factory.CreateClient();
+        using var factory = new DeRelayWebFactory();
+        var client = factory.CreateClient();
         var token = await RegisterAndLogin(client, "sig" + Tag());
         UseBearer(client, token);
 
@@ -80,14 +78,16 @@ public class ControllerSecurityTests : IClassFixture<DeRelayWebFactory>
     [Fact]
     public async Task NoToken_LockedEndpoint_401()
     {
-        var client = _factory.CreateClient();
+        using var factory = new DeRelayWebFactory();
+        var client = factory.CreateClient();
         Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/Friendship")).StatusCode);
     }
 
     [Fact]
     public async Task GarbageToken_LockedEndpoint_401()
     {
-        var client = _factory.CreateClient();
+        using var factory = new DeRelayWebFactory();
+        var client = factory.CreateClient();
         UseBearer(client, "garbage");
         Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/Friendship")).StatusCode);
     }
@@ -95,7 +95,8 @@ public class ControllerSecurityTests : IClassFixture<DeRelayWebFactory>
     [Fact]
     public async Task TamperedToken_LockedEndpoint_401()
     {
-        var client = _factory.CreateClient();
+        using var factory = new DeRelayWebFactory();
+        var client = factory.CreateClient();
         var token = await RegisterAndLogin(client, "tmp" + Tag());
         var parts = token.Split('.');
         var sig = parts[2];
@@ -108,7 +109,8 @@ public class ControllerSecurityTests : IClassFixture<DeRelayWebFactory>
     [Fact]
     public async Task ExpiredToken_LockedEndpoint_401()
     {
-        var client = _factory.CreateClient();
+        using var factory = new DeRelayWebFactory();
+        var client = factory.CreateClient();
         var token = await RegisterAndLogin(client, "exp" + Tag());
         var sub = new JwtSecurityTokenHandler().ReadJwtToken(token)
             .Claims.First(c => c.Type == "sub").Value;
@@ -121,7 +123,8 @@ public class ControllerSecurityTests : IClassFixture<DeRelayWebFactory>
     public async Task ShortLivedToken_10Seconds_200Now()
     {
         // The "very short time" case: 10s token must work inside its window.
-        var client = _factory.CreateClient();
+        using var factory = new DeRelayWebFactory();
+        var client = factory.CreateClient();
         var token = await RegisterAndLogin(client, "s10" + Tag());
         var sub = new JwtSecurityTokenHandler().ReadJwtToken(token)
             .Claims.First(c => c.Type == "sub").Value;
@@ -133,15 +136,16 @@ public class ControllerSecurityTests : IClassFixture<DeRelayWebFactory>
     [Fact]
     public async Task CrossUser_FriendRequestFlow_OverHttp()
     {
-        var clientA = _factory.CreateClient();
-        var clientB = _factory.CreateClient();
+        using var factory = new DeRelayWebFactory();
+        var clientA = factory.CreateClient();
+        var clientB = factory.CreateClient();
         var tokenA = await RegisterAndLogin(clientA, "frA" + Tag());
         await RegisterAndLogin(clientB, "frB" + Tag());
         UseBearer(clientA, tokenA);
 
         // Receiver person id read straight from the shared test DB (no id-oracle API needed).
         int receiverPersonId;
-        using (var scope = _factory.Services.CreateScope())
+        using (var scope = factory.Services.CreateScope())
         {
             var ctx = scope.ServiceProvider.GetRequiredService<DeRelayDbContext>();
             receiverPersonId = await ctx.Persons
@@ -155,7 +159,8 @@ public class ControllerSecurityTests : IClassFixture<DeRelayWebFactory>
     [Fact]
     public async Task Register_DuplicateUserName_409()
     {
-        var client = _factory.CreateClient();
+        using var factory = new DeRelayWebFactory();
+        var client = factory.CreateClient();
         var user = "dup" + Tag();
         Assert.Equal(HttpStatusCode.Created,
             (await client.PostAsync("/api/Auth/register", JsonBody(RegisterBody(user)))).StatusCode);
