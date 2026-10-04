@@ -6,10 +6,12 @@ using DeRelay.Core.Interfaces;
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using ValidationException = DeRelay.Core.Exceptions.ValidationException;
 
 namespace DeRelay.Api.Controllers;
 
+[EnableRateLimiting("after-login")]
 [Authorize]
 [ApiController]
 [Route("api/[controller]")]
