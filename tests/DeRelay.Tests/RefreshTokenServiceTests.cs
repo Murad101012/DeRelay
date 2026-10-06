@@ -239,4 +239,145 @@ public class RefreshTokenServiceTests
         await Assert.ThrowsAsync<NotFoundException>(() =>
             scope.Service.RefreshTheRefreshTokenOfExistingSession(new UserRefreshTokenDto(laptop.RefreshToken)));
     }
+
+    [Fact]
+    public async Task Sweep_RepeatedCycles_LongChainsTrimmedShortUntouched()
+    {
+        await using var scope = new Scope();
+        var quietId = await SeedAppUser(scope.Context, "quiet");
+        var busyId = await SeedAppUser(scope.Context, "busy");
+
+        // Quiet session: 3 revoked + live, never exceeds the cap.
+        var quiet = await scope.Service.CreateRefreshTokenWithNewSession(quietId);
+        for (var i = 0; i < 3; i++)
+            quiet = await scope.Service.RefreshTheRefreshTokenOfExistingSession(
+                new UserRefreshTokenDto(quiet.RefreshToken));
+
+        // Busy session: chain past 100 from the start (105 revoked + live).
+        var busy = await scope.Service.CreateRefreshTokenWithNewSession(busyId);
+        for (var i = 0; i < 105; i++)
+            busy = await scope.Service.RefreshTheRefreshTokenOfExistingSession(
+                new UserRefreshTokenDto(busy.RefreshToken));
+
+        async Task<int> Revoked(int appUserId) => await scope.Context.RefreshToken
+            .CountAsync(t => t.AppUserId == appUserId && t.IsRevoked);
+        async Task<int> Live(int appUserId) => await scope.Context.RefreshToken
+            .CountAsync(t => t.AppUserId == appUserId && !t.IsRevoked);
+
+        // Six ticks: sweep, grow both sessions, sweep again.
+        for (var cycle = 0; cycle < 6; cycle++)
+        {
+            var deleted = await scope.Service.DeleteOldRefreshTokensInSessionsAsync(CancellationToken.None);
+            Assert.Equal(1, await Live(quietId));
+            Assert.Equal(1, await Live(busyId));
+            var busyRevoked = await Revoked(busyId);
+            Assert.True(busyRevoked <= 20);
+            if (cycle == 0)
+            {
+                // First tick: 105 -> 20, exactly 85 gone; quiet untouched (3 <= 20).
+                Assert.Equal(85, deleted);
+                Assert.Equal(3, await Revoked(quietId));
+            }
+
+            // Grow: busy +5 rotations, quiet +1 (quiet ends at 9, still under cap).
+            for (var i = 0; i < 5; i++)
+                busy = await scope.Service.RefreshTheRefreshTokenOfExistingSession(
+                    new UserRefreshTokenDto(busy.RefreshToken));
+            quiet = await scope.Service.RefreshTheRefreshTokenOfExistingSession(
+                new UserRefreshTokenDto(quiet.RefreshToken));
+        }
+
+        // After 6 cycles + final sweep: quiet 9 revoked (never trimmed),
+        // busy pinned at 20, 2 live heads.
+        await scope.Service.DeleteOldRefreshTokensInSessionsAsync(CancellationToken.None);
+        Assert.Equal(9, await Revoked(quietId));
+        Assert.Equal(20, await Revoked(busyId));
+        Assert.Equal(2, await scope.Context.RefreshToken.CountAsync(t => !t.IsRevoked));
+        // Trim kept the newest links: busy's lowest surviving chain is Max - 19.
+        var numbers = await scope.Context.RefreshToken
+            .Where(t => t.AppUserId == busyId && t.IsRevoked)
+            .Select(t => t.ChainNumber).ToListAsync();
+        Assert.Equal(20, numbers.Count);
+        Assert.Equal(numbers.Max(), numbers.Min() + 19);
+    }
+
+    [Fact]
+    public async Task DeleteSession_EmptyGuid_ThrowsNotFoundChangesNothing()
+    {
+        await using var scope = new Scope();
+        var appUserId = await SeedAppUser(scope.Context);
+        var first = await scope.Service.CreateRefreshTokenWithNewSession(appUserId);
+
+        await Assert.ThrowsAsync<NotFoundException>(() =>
+            scope.Service.DeleteSessionAsync(Guid.Empty, appUserId));
+
+        // Nothing touched: the session still rotates.
+        var second = await scope.Service.RefreshTheRefreshTokenOfExistingSession(
+            new UserRefreshTokenDto(first.RefreshToken));
+        Assert.NotEqual(first.RefreshToken, second.RefreshToken);
+    }
+
+    [Fact]
+    public async Task Sessions_MultipleSessionsWithCorpses_ListsOnePerLive()
+    {
+        await using var scope = new Scope();
+        var appUserId = await SeedAppUser(scope.Context);
+        var s1 = await scope.Service.CreateRefreshTokenWithNewSession(appUserId);
+        var s2 = await scope.Service.CreateRefreshTokenWithNewSession(appUserId);
+        // Two rotations each: corpses pile up, one live head per session.
+        s1 = await scope.Service.RefreshTheRefreshTokenOfExistingSession(new UserRefreshTokenDto(s1.RefreshToken));
+        s1 = await scope.Service.RefreshTheRefreshTokenOfExistingSession(new UserRefreshTokenDto(s1.RefreshToken));
+        s2 = await scope.Service.RefreshTheRefreshTokenOfExistingSession(new UserRefreshTokenDto(s2.RefreshToken));
+        Assert.Equal(5, await scope.Context.RefreshToken.CountAsync());
+
+        var sessions = await scope.Service.ReturnAllSessionsAsync(appUserId);
+        Assert.Equal(2, sessions.Count);
+        var liveIds = await scope.Context.RefreshToken
+            .Where(t => !t.IsRevoked).Select(t => t.SessionId).ToListAsync();
+        Assert.Equal(liveIds.OrderBy(x => x).ToList(), sessions.Select(s => s.SessionId).OrderBy(x => x).ToList());
+        _ = s1; _ = s2;
+    }
+
+    [Fact]
+    public async Task Refresh_DailyActiveSession_StillExpiresAt30Days()
+    {
+        await using var scope = new Scope();
+        var appUserId = await SeedAppUser(scope.Context);
+        // Active user: rotates fine today...
+        var token = await scope.Service.CreateRefreshTokenWithNewSession(appUserId);
+        token = await scope.Service.RefreshTheRefreshTokenOfExistingSession(
+            new UserRefreshTokenDto(token.RefreshToken));
+
+        // ...but rotation never extends the window: aged live head dies anyway.
+        // Pins ABSOLUTE (not sliding) expiry — conscious product decision.
+        await scope.Context.Database.ExecuteSqlRawAsync(
+            """UPDATE "RefreshToken" SET "SessionExpiry" = '2000-01-01 00:00:00' WHERE "IsRevoked" = 0""");
+        scope.Context.ChangeTracker.Clear();
+
+        await Assert.ThrowsAsync<UnauthorizedException>(() =>
+            scope.Service.RefreshTheRefreshTokenOfExistingSession(new UserRefreshTokenDto(token.RefreshToken)));
+    }
+
+    [Fact]
+    public async Task Refresh_PrunedHistory_ReplaysAsNotFoundWithoutKill()
+    {
+        await using var scope = new Scope();
+        var appUserId = await SeedAppUser(scope.Context);
+        var ancient = await scope.Service.CreateRefreshTokenWithNewSession(appUserId);
+        var live = await scope.Service.RefreshTheRefreshTokenOfExistingSession(
+            new UserRefreshTokenDto(ancient.RefreshToken));
+
+        // Simulate the sweeper pruning the ancient revoked link.
+        await scope.Context.Database.ExecuteSqlRawAsync(
+            """DELETE FROM "RefreshToken" WHERE "IsRevoked" = 1""");
+        scope.Context.ChangeTracker.Clear();
+        Assert.Equal(1, await scope.Context.RefreshToken.CountAsync());
+
+        // Attacker replays the pruned token: unknown, not a kill — live head survives.
+        await Assert.ThrowsAsync<NotFoundException>(() =>
+            scope.Service.RefreshTheRefreshTokenOfExistingSession(new UserRefreshTokenDto(ancient.RefreshToken)));
+        var live2 = await scope.Service.RefreshTheRefreshTokenOfExistingSession(
+            new UserRefreshTokenDto(live.RefreshToken));
+        Assert.NotEqual(live.RefreshToken, live2.RefreshToken);
+    }
 }
