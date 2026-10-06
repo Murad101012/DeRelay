@@ -17,5 +17,6 @@ public class RefreshTokenConfiguration: IEntityTypeConfiguration<RefreshToken>
         builder.Property(r => r.AppUserId).IsRequired();
         builder.Property(r => r.HashedToken).IsRequired();
         builder.Property(r => r.IsRevoked).HasDefaultValue(false);
+        builder.Property(r => r.ChainNumber).IsRequired();
     }
 }

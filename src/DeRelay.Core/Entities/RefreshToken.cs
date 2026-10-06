@@ -10,14 +10,16 @@ public class RefreshToken
     public int AppUserId { get; private set; }
     public string HashedToken { get; private set; }
     public bool IsRevoked { get; private set; }
+    public int ChainNumber{ get; private set; }
 
-    public RefreshToken(Guid sessionId, int appUserId, string hashedToken)
+    public RefreshToken(Guid sessionId, int appUserId, string hashedToken, int chainNumber)
     {
         SessionId = sessionId;
         SessionExpiry = DateTime.UtcNow + TimeSpan.FromDays(RefreshTokenConstraints.ExpandingDays);
         AppUserId = appUserId;
         HashedToken = hashedToken;
         IsRevoked = false;
+        ChainNumber = chainNumber;
     }
     
     public void ChangeTokenToRevoked() => IsRevoked = true;
