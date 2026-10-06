@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using DeRelay.Core.Constants;
 using DeRelay.Core.DTOs.RefreshToken;
 using DeRelay.Core.Entities;
 using DeRelay.Core.Exceptions;
@@ -13,7 +14,7 @@ public class RefreshTokenService(DeRelayDbContext deRelayDbContext): IRefreshTok
 {
     public async Task<ReturnNewRefreshTokenDto> CreateRefreshTokenWithNewSession(int appUserId)
     {
-        var refreshTokenObject = CreateNewRefreshToken(Guid.NewGuid(), appUserId);
+        var refreshTokenObject = await CreateNewRefreshToken(Guid.NewGuid(), appUserId);
         await deRelayDbContext.SaveChangesAsync();
         return refreshTokenObject.ToReturnNewRefreshTokenDto();
     }
@@ -43,7 +44,7 @@ public class RefreshTokenService(DeRelayDbContext deRelayDbContext): IRefreshTok
         //If exist we "disable" the token
         oldRefreshToken.ChangeTokenToRevoked();
         //And create new one
-        var refreshToken = CreateNewRefreshToken(oldRefreshToken.SessionId, oldRefreshToken.AppUserId);
+        var refreshToken = await CreateNewRefreshToken(oldRefreshToken.SessionId, oldRefreshToken.AppUserId);
         await deRelayDbContext.SaveChangesAsync();
         return refreshToken.ToReturnNewRefreshTokenDto();
     }
@@ -85,19 +86,44 @@ public class RefreshTokenService(DeRelayDbContext deRelayDbContext): IRefreshTok
         await deRelayDbContext.SaveChangesAsync();
     }
 
+    //NOTE: Logic made by Developer but syntax helped by Muse Spark 1.3 AI
+    public async Task<int> DeleteOldRefreshTokensInSessionsAsync(CancellationToken cancellationToken)
+    {
+        var overgrown = await deRelayDbContext.RefreshToken
+            .Where(t => t.IsRevoked)
+            .GroupBy(t => t.SessionId)
+            .Where(g => g.Count() > RefreshTokenConstraints.RefreshTokenHoldingLimitForSession)
+            .Select(g => new
+            {
+                SessionId = g.Key,
+                Cutoff = g.Max(t => t.ChainNumber) - RefreshTokenConstraints.RefreshTokenHoldingLimitForSession
+            })
+            .ToListAsync(cancellationToken);
+
+        var deleted = 0;
+        foreach (var s in overgrown)
+            deleted += await deRelayDbContext.RefreshToken
+                .Where(t => t.SessionId == s.SessionId && t.IsRevoked && t.ChainNumber <= s.Cutoff)
+                .ExecuteDeleteAsync(cancellationToken);
+        return deleted;
+    }
+
     private string GenerateRefreshToken()
     {
         byte[] randomBytes = RandomNumberGenerator.GetBytes(32);
         return Convert.ToBase64String(randomBytes);
     }
 
-    private string CreateNewRefreshToken(Guid sessionId, int appUserId)
+    private async Task<string> CreateNewRefreshToken(Guid sessionId, int appUserId)
     {
         var refreshToken = GenerateRefreshToken();
+        var oldRefreshToken = await GetActiveRefreshTokenForSession(sessionId);
+        var newRefreshTokenChainNumber = (oldRefreshToken?.ChainNumber ?? 0) + 1;
         deRelayDbContext.Add(new RefreshToken(
             sessionId, 
             appUserId, 
-            TurnUserRefreshTokenToHashedVersion(refreshToken)));
+            TurnUserRefreshTokenToHashedVersion(refreshToken),
+            newRefreshTokenChainNumber));
         return refreshToken;
     }
 
@@ -111,5 +137,10 @@ public class RefreshTokenService(DeRelayDbContext deRelayDbContext): IRefreshTok
     {
         if(refreshToken.SessionExpiry <= DateTime.UtcNow)
             throw new UnauthorizedException("Session couldn't find or expired, please login again.");
+    }
+
+    private async Task<RefreshToken?> GetActiveRefreshTokenForSession(Guid sessionId)
+    {
+        return await deRelayDbContext.RefreshToken.FirstOrDefaultAsync(token => token.SessionId == sessionId && !token.IsRevoked);
     }
 }
