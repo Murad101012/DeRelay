@@ -1,5 +1,6 @@
 using DeRelay.Api.Extensions;
 using DeRelay.Core.DTOs.AppUser;
+using DeRelay.Core.DTOs.Person;
 using DeRelay.Core.DTOs.RefreshToken;
 using DeRelay.Core.DTOs.TokenPair;
 using DeRelay.Core.Interfaces;
@@ -19,11 +20,12 @@ namespace DeRelay.Api.Controllers;
 public class AuthController(
     IAuthService iAuthService,
     IValidator<RegisterDto> registerValidator,
+    IValidator<CreatePersonDto> createPersonValidator,
     IValidator<LoginDto> loginValidator,
     IValidator<UserRefreshTokenDto> userRefreshTokenValidator): ControllerBase
 {
     [HttpPost("register")]
-    [EnableRateLimiting("register")]
+    [EnableRateLimiting("create-full-account")]
     public async Task<ActionResult<int>> Register([FromBody] RegisterDto dto)
     {
         var validate = await registerValidator.ValidateAsync(dto);
@@ -32,7 +34,19 @@ public class AuthController(
 
         return StatusCode(201, await iAuthService.RegisterAsync(dto));
     }
+    
+    [Authorize]
+    [HttpPost("complete-profile")]
+    [EnableRateLimiting("create-full-account")]
+    public async Task<ActionResult<int>> CompleteProfile([FromBody] CreatePersonDto dto)
+    {
+        var validate = await createPersonValidator.ValidateAsync(dto);
+        if (!validate.IsValid)
+            throw new ValidationException(validate.Errors.First().ErrorMessage);
 
+        return StatusCode(201, await iAuthService.CompleteProfile(dto, User.GetAppUserId()));
+    }
+    
     [HttpPost("login")]
     [EnableRateLimiting("login-tight")]
     public async Task<ActionResult<JwtAndRefreshTokensDto>> Login([FromBody] LoginDto dto)

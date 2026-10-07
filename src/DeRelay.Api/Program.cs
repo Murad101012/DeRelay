@@ -92,7 +92,7 @@ builder.Services.AddRateLimiter(options =>
                 PermitLimit = 7
             }));
     
-    options.AddPolicy("register", httpContext =>
+    options.AddPolicy("create-full-account", httpContext =>
         RateLimitPartition.GetFixedWindowLimiter(
             partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
             factory: _ => new FixedWindowRateLimiterOptions

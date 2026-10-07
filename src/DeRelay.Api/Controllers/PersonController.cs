@@ -1,5 +1,3 @@
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
 using DeRelay.Api.Extensions;
 using DeRelay.Core.DTOs.Person;
 using DeRelay.Core.Interfaces;
@@ -15,7 +13,7 @@ namespace DeRelay.Api.Controllers;
 [Authorize]
 [ApiController]
 [Route("api/[controller]")]
-public class PersonsController(
+public class PersonController(
     IPersonService personService, 
     IValidator<UpdatePersonDto> updateValidator): ControllerBase
 {
