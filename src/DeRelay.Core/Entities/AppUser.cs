@@ -9,26 +9,40 @@ namespace DeRelay.Core.Entities;
 public class AppUser
 {
     public int Id { get; private set; }
-    public string UserName { get; private set; }
+    public string Email { get; private set; }
     public string PasswordHash { get; private set; }
-    public int PersonId { get; private set; }
+
+    public int? PersonId { get; private set; }
+
     public DateTime CreatedOn { get; private set; }
     
-    public AppUser(string userName, string passwordHash, int personId)
+    public AppUser(string email, string passwordHash)
     {
-        SetUserName(userName);
+        SetEmail(email);
         SetPasswordHash(passwordHash);
-        PersonId = personId;
         CreatedOn = DateTime.UtcNow;
     }
-    
-    private void SetUserName(string userName)
+
+    public int ValidatePersonIdAndReturn()
     {
-        if (string.IsNullOrWhiteSpace(userName)) throw new ValidationException("UserName cannot be empty");
-        if (userName.Length < AppUserConstraints.UserNameLengthMin || userName.Length > AppUserConstraints.UserNameLengthMax)
-            throw new ValidationException($"UserName should be between {AppUserConstraints.UserNameLengthMin}" +
-                                          $" and {AppUserConstraints.UserNameLengthMax} characters");
-        UserName = userName;
+        return PersonId ?? throw new NotFoundException("Profile couldn't be found, please create one");
+    }
+    
+    /// <returns>TRUE - PersonId is NOT NULL</returns>
+    public bool CheckIfPersonIdExists()
+    {
+        return PersonId != null;
+    }
+
+    public void SetPersonId(int personId)
+    {
+        if (personId <= 0) throw new ValidationException("PersonId cannot be less or equal to zero");
+        PersonId = personId;
+    }
+    
+    private void SetEmail(string email)
+    {
+        Email = email;
     }
 
     private void SetPasswordHash(string passwordHash)
