@@ -1,6 +1,7 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using DeRelay.Core.DTOs.AppUser;
+using DeRelay.Core.DTOs.Person;
 using DeRelay.Core.DTOs.RefreshToken;
 using DeRelay.Core.DTOs.TokenPair;
 using DeRelay.Core.Entities;
@@ -25,17 +26,16 @@ public class AuthService(DeRelayDbContext deRelayDbContext
     /// </summary>
     public async Task<int> RegisterAsync(RegisterDto dto)
     {
-        if (await iAppUserService.CheckIfUserNameAvailableInAppUser(dto.UserName))
-            throw new AlreadyExistsException($"{dto.UserName} is already in use, please use another username");
+        if (await iAppUserService.CheckIfEmailAvailableInAppUser(dto.Email))
+            throw new AlreadyExistsException($"{dto.Email} is already in use, please use another username");
         
         await using var transaction = await deRelayDbContext.Database.BeginTransactionAsync();
         try
         {
-            var personId = await iPersonService.CreatePersonAsync(dto.ToCreatePersonDto());
             //TODO: Learn why this gets null! as parameter
             var passwordHash = passwordHasher.HashPassword(null!, dto.Password);
 
-            int newAppUserId = await iAppUserService.CreateAppUserAsync(dto.UserName, passwordHash, personId);
+            int newAppUserId = await iAppUserService.CreateAppUserAsync(dto.Email, passwordHash);
             await deRelayDbContext.SaveChangesAsync();
             await transaction.CommitAsync();
 
@@ -48,10 +48,21 @@ public class AuthService(DeRelayDbContext deRelayDbContext
             throw;
         }
     }
+    
+    public async Task<int> CompleteProfile(CreatePersonDto dto, int appUserId)
+    {
+        var appUser = await iAppUserService.ReturnAppUserByIdAsync(appUserId);
+        if(appUser.CheckIfPersonIdExists())
+            throw new AlreadyExistsException($"Profile already created for account that {appUser.Email}");
+        var personId = await iPersonService.CreatePersonAsync(dto);
+        appUser.SetPersonId(personId);
+        await deRelayDbContext.SaveChangesAsync();
+        return personId;
+    }
 
     public async Task<JwtAndRefreshTokensDto> LoginAsync(LoginDto dto)
     {
-        var appUser = await iAppUserService.ReturnAppUserByUsername(dto.UserName);
+        var appUser = await iAppUserService.ReturnAppUserByEmail(dto.Email);
         
         //Checking the user found  || Checking if the password is correct
         if (appUser == null || passwordHasher.VerifyHashedPassword(null!, appUser.PasswordHash, dto.Password) 
@@ -71,7 +82,7 @@ public class AuthService(DeRelayDbContext deRelayDbContext
          since AppUser has FK to Person, only removing Person will be enough that
          related AppUser entity to Person also will be removed*/
         await iPersonService.DeletePersonByIdAsync(
-            (await iAppUserService.ReturnAppUserByIdAsync(appUserId)).PersonId);
+            (await iAppUserService.ReturnAppUserByIdAsync(appUserId)).ValidatePersonIdAndReturn());
         await deRelayDbContext.SaveChangesAsync();
     }
 
@@ -92,7 +103,7 @@ public class AuthService(DeRelayDbContext deRelayDbContext
         var claims = new List<Claim>
         {
             //NOTE: JwtRegisteredClaimNames are just returning strings
-            new(JwtRegisteredClaimNames.Name, appUser.UserName),
+            new(JwtRegisteredClaimNames.Name, appUser.Email),
             new(JwtRegisteredClaimNames.Sub, appUser.Id.ToString())
         };
 

@@ -21,18 +21,18 @@ public class FriendRequestService(
         var appUser = await iAppUserService.ReturnAppUserByIdAsync(appUserId);
         
         //Check sender/receiver is same
-        if(CheckSenderReceiverIdIsSame(appUser.PersonId, dto.ReceiverId))
+        if(CheckSenderReceiverIdIsSame(appUser.ValidatePersonIdAndReturn(), dto.ReceiverId))
             throw new ValidationException("You cannot send a friend request to same persons");
         
         //Check if the person exists
-        await ValidatePersonIdIsValid(appUser.PersonId);
+        await ValidatePersonIdIsValid(appUser.ValidatePersonIdAndReturn());
         await ValidatePersonIdIsValid(dto.ReceiverId);
         
         //Check if already in FriendRequests table
-        if (await CheckIfAlreadyInRequest(appUser.PersonId, dto.ReceiverId))
+        if (await CheckIfAlreadyInRequest(appUser.ValidatePersonIdAndReturn(), dto.ReceiverId))
             throw new AlreadyExistsException("Friend request for these persons are already in proceed");
         
-        var newFriendRequest = new FriendRequest(appUser.PersonId, dto.ReceiverId);
+        var newFriendRequest = new FriendRequest(appUser.ValidatePersonIdAndReturn(), dto.ReceiverId);
         
         deRelayDbContext.Add(newFriendRequest);
         await deRelayDbContext.SaveChangesAsync();
@@ -43,15 +43,15 @@ public class FriendRequestService(
         var appUser = await iAppUserService.ReturnAppUserByIdAsync(appUserId);
 
         //Check sender/receiver is same
-        if(CheckSenderReceiverIdIsSame(appUser.PersonId, dto.ReceiverId))
+        if(CheckSenderReceiverIdIsSame(appUser.ValidatePersonIdAndReturn(), dto.ReceiverId))
             throw new ValidationException("You cannot accept same persons as a friend request");
         
         //Check if the person exists
-        await ValidatePersonIdIsValid(appUser.PersonId);
+        await ValidatePersonIdIsValid(appUser.ValidatePersonIdAndReturn());
         await ValidatePersonIdIsValid(dto.ReceiverId);
         
         //Check if already in FriendRequests table
-        if (!await CheckIfAlreadyInRequest(appUser.PersonId, dto.ReceiverId))
+        if (!await CheckIfAlreadyInRequest(appUser.ValidatePersonIdAndReturn(), dto.ReceiverId))
             throw new NotFoundException("Couldn't find friend request for these persons to accept");
         
         var friendRequest =
@@ -68,15 +68,15 @@ public class FriendRequestService(
         var appUser = await iAppUserService.ReturnAppUserByIdAsync(appUserId);
 
         //Check sender/receiver is same
-        if(CheckSenderReceiverIdIsSame(appUser.PersonId, dto.ReceiverId))
+        if(CheckSenderReceiverIdIsSame(appUser.ValidatePersonIdAndReturn(), dto.ReceiverId))
             throw new ValidationException("You cannot decline same persons as a friend request");
         
         //Check if the person exists
-        await ValidatePersonIdIsValid(appUser.PersonId);
+        await ValidatePersonIdIsValid(appUser.ValidatePersonIdAndReturn());
         await ValidatePersonIdIsValid(dto.ReceiverId);
         
         //Check if already in FriendRequests table
-        if (!await CheckIfAlreadyInRequest(appUser.PersonId, dto.ReceiverId))
+        if (!await CheckIfAlreadyInRequest(appUser.ValidatePersonIdAndReturn(), dto.ReceiverId))
             throw new NotFoundException("Couldn't find friend request for these persons to decline");
         
         var friendRequest =

@@ -22,14 +22,14 @@ public class PersonService(
     public async Task<ReturnPersonDto> GetPersonAsDtoByIdAsync(int appUserId)
     {
         var appUser = await iAppUserService.ReturnAppUserByIdAsync(appUserId);
-        var person = await GetPersonReadOnlyByIdAsync(appUser.PersonId);
+        var person = await GetPersonReadOnlyByIdAsync(appUser.ValidatePersonIdAndReturn());
         return person.ToReturnDto();
     }
 
     public async Task UpdatePersonByIdAsync(int appUserId, UpdatePersonDto dto)
     {
         var appUser = await iAppUserService.ReturnAppUserByIdAsync(appUserId);
-        var person = await GetPersonByIdAsync(appUser.PersonId);
+        var person = await GetPersonByIdAsync(appUser.ValidatePersonIdAndReturn());
         person.UpdatePerson(dto.FirstName, dto.LastName, dto.NickName, dto.Gender);
         await deRelayDbContext.SaveChangesAsync();
     }
