@@ -27,13 +27,8 @@ public class ControllerSecurityTests
 
     private static object RegisterBody(string u) => new
     {
-        userName = u,
+        email = u + "@mail.com",
         password = "cat12345",
-        firstName = "Aa",
-        lastName = "Aa",
-        nickName = "n" + Tag(),
-        gender = "Male",
-        dateOfBirth = "2000-01-01T00:00:00Z",
     };
 
     private async Task<string> RegisterAndLogin(HttpClient client, string user)
@@ -41,7 +36,7 @@ public class ControllerSecurityTests
         var reg = await client.PostAsync("/api/Auth/register", JsonBody(RegisterBody(user)));
         Assert.Equal(HttpStatusCode.Created, reg.StatusCode);
         var login = await client.PostAsync("/api/Auth/login",
-            JsonBody(new { userName = user, password = "cat12345" }));
+            JsonBody(new { email = user + "@mail.com", password = "cat12345" }));
         Assert.Equal(HttpStatusCode.OK, login.StatusCode);
         using var doc = JsonDocument.Parse(await login.Content.ReadAsStringAsync());
         foreach (var name in new[] { "jwtToken", "JwtToken", "accessToken", "AccessToken", "token", "Token" })
@@ -50,6 +45,19 @@ public class ControllerSecurityTests
                 !string.IsNullOrWhiteSpace(token.GetString()))
                 return token.GetString()!;
         throw new InvalidOperationException("Login response did not contain a JWT access token.");
+    }
+
+    private static async Task CompleteProfile(HttpClient client, string tag)
+    {
+        var complete = await client.PostAsync("/api/Auth/complete-profile", JsonBody(new
+        {
+            firstName = "Aa",
+            lastName = "Aa",
+            nickName = "n" + tag,
+            gender = "Male",
+            dateOfBirth = "2000-01-01T00:00:00Z",
+        }));
+        Assert.Equal(HttpStatusCode.Created, complete.StatusCode);
     }
 
     private static void UseBearer(HttpClient client, string token) =>
@@ -71,6 +79,7 @@ public class ControllerSecurityTests
         var client = factory.CreateClient();
         var token = await RegisterAndLogin(client, "sig" + Tag());
         UseBearer(client, token);
+        await CompleteProfile(client, Tag());
 
         Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/api/Friendship")).StatusCode);
     }
@@ -128,6 +137,8 @@ public class ControllerSecurityTests
         var token = await RegisterAndLogin(client, "s10" + Tag());
         var sub = new JwtSecurityTokenHandler().ReadJwtToken(token)
             .Claims.First(c => c.Type == "sub").Value;
+        UseBearer(client, token);
+        await CompleteProfile(client, Tag());
         UseBearer(client, Mint(sub, DateTime.UtcNow.AddSeconds(10)));
 
         Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/api/Friendship")).StatusCode);
@@ -140,7 +151,11 @@ public class ControllerSecurityTests
         var clientA = factory.CreateClient();
         var clientB = factory.CreateClient();
         var tokenA = await RegisterAndLogin(clientA, "frA" + Tag());
-        await RegisterAndLogin(clientB, "frB" + Tag());
+        var tokenB = await RegisterAndLogin(clientB, "frB" + Tag());
+        UseBearer(clientA, tokenA);
+        await CompleteProfile(clientA, Tag());
+        UseBearer(clientB, tokenB);
+        await CompleteProfile(clientB, Tag());
         UseBearer(clientA, tokenA);
 
         // Receiver person id read straight from the shared test DB (no id-oracle API needed).

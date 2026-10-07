@@ -54,8 +54,17 @@ public class AuthLoginTests
         }
     }
 
-    private static RegisterDto ValidRegister(string userName = "aysel97") =>
-        new(userName, "cat12345", "Aysel", "Mammadova", "aysel", Gender.Female, new DateTime(2000, 1, 1));
+    private static RegisterDto ValidRegister(string email = "aysel@mail.com") =>
+        new(email, "cat12345");
+
+    private static async Task LinkPerson(DeRelayDbContext ctx, int appUserId, string nickName)
+    {
+        var person = new Person("Aa", "Aa", nickName, Gender.Male, new DateTime(2000, 1, 1));
+        ctx.Persons.Add(person);
+        await ctx.SaveChangesAsync();
+        ctx.Entry(await ctx.AppUsers.FindAsync(appUserId)).Property(u => u.PersonId).CurrentValue = person.Id;
+        await ctx.SaveChangesAsync();
+    }
 
     [Fact]
     public async Task Login_Success_MintsParsableTokenWithSub()
@@ -63,7 +72,7 @@ public class AuthLoginTests
         await using var scope = new Scope();
         var userId = await scope.Service.RegisterAsync(ValidRegister());
 
-        var pair = await scope.Service.LoginAsync(new LoginDto("aysel97", "cat12345"));
+        var pair = await scope.Service.LoginAsync(new LoginDto("aysel@mail.com", "cat12345"));
         var jwt = pair.JwtToken;
 
         Assert.False(string.IsNullOrWhiteSpace(jwt));
@@ -71,7 +80,7 @@ public class AuthLoginTests
         Assert.Equal(3, jwt.Split('.').Length); // header.payload.signature
         var read = new JwtSecurityTokenHandler().ReadJwtToken(jwt);
         Assert.Equal(userId.ToString(), read.Claims.First(c => c.Type == "sub").Value);
-        Assert.Equal("aysel97", read.Claims.First(c => c.Type == "name").Value);
+        Assert.Equal("aysel@mail.com", read.Claims.First(c => c.Type == "name").Value);
     }
 
     [Fact]
@@ -80,7 +89,7 @@ public class AuthLoginTests
         await using var scope = new Scope();
         await scope.Service.RegisterAsync(ValidRegister());
 
-        var pair = await scope.Service.LoginAsync(new LoginDto("aysel97", "cat12345"));
+        var pair = await scope.Service.LoginAsync(new LoginDto("aysel@mail.com", "cat12345"));
         var jwt = pair.JwtToken;
 
         var read = new JwtSecurityTokenHandler().ReadJwtToken(jwt);
@@ -96,11 +105,11 @@ public class AuthLoginTests
         await using var scope = new Scope();
         await scope.Service.RegisterAsync(ValidRegister());
 
-        // Unknown username vs known username + wrong password must be indistinguishable.
+        // Unknown email vs known email + wrong password must be indistinguishable.
         var exUnknown = await Assert.ThrowsAsync<ValidationException>(() =>
-            scope.Service.LoginAsync(new LoginDto("ghost", "cat12345")));
+            scope.Service.LoginAsync(new LoginDto("ghost@mail.com", "cat12345")));
         var exWrongPass = await Assert.ThrowsAsync<ValidationException>(() =>
-            scope.Service.LoginAsync(new LoginDto("aysel97", "wrongpass")));
+            scope.Service.LoginAsync(new LoginDto("aysel@mail.com", "wrongpass")));
 
         Assert.Equal(exUnknown.Message, exWrongPass.Message);
     }
@@ -117,7 +126,7 @@ public class AuthLoginTests
         var tasks = Enumerable.Range(0, 8).Select(_ => Task.Run(async () =>
         {
             await using var s = new Scope(scope.DbPath);
-            return await s.Service.LoginAsync(new LoginDto("aysel97", "cat12345"));
+            return await s.Service.LoginAsync(new LoginDto("aysel@mail.com", "cat12345"));
         })).ToArray();
         var pairs = await Task.WhenAll(tasks);
 
@@ -132,6 +141,7 @@ public class AuthLoginTests
     {
         await using var scope = new Scope();
         var userId = await scope.Service.RegisterAsync(ValidRegister());
+        await LinkPerson(scope.Context, userId, "aysel");
 
         await scope.Service.DeleteAccountAsync(userId);
 
@@ -148,7 +158,7 @@ public class AuthLoginTests
         await Assert.ThrowsAsync<NotFoundException>(() =>
             scope.Service.DeleteAccountAsync(999));
 
-        Assert.Equal(1, await scope.Context.Persons.CountAsync());
+        Assert.Equal(0, await scope.Context.Persons.CountAsync());
         Assert.Equal(1, await scope.Context.AppUsers.CountAsync());
     }
 }

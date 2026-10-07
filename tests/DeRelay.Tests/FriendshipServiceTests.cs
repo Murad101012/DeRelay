@@ -50,9 +50,12 @@ public class FriendshipServiceTests
             new CreatePersonDto("Aa", "Aa", "useraa", Gender.Male, new DateTime(2000, 1, 1)));
         var personB = await personService.CreatePersonAsync(
             new CreatePersonDto("Bb", "Bb", "userbb", Gender.Female, new DateTime(2001, 2, 2)));
-        var userA = new AppUser("loginA", "HASH", personA);
-        var userB = new AppUser("loginB", "HASH", personB);
+        var userA = new AppUser("loginA@mail.com", "HASH");
+        var userB = new AppUser("loginB@mail.com", "HASH");
         ctx.AppUsers.AddRange(userA, userB);
+        await ctx.SaveChangesAsync();
+        ctx.Entry(userA).Property(u => u.PersonId).CurrentValue = personA;
+        ctx.Entry(userB).Property(u => u.PersonId).CurrentValue = personB;
         await ctx.SaveChangesAsync();
         return (userA.Id, personA, userB.Id, personB);
     }

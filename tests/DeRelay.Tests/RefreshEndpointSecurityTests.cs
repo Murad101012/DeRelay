@@ -21,13 +21,8 @@ public class RefreshEndpointSecurityTests
 
     private static object RegisterBody(string u) => new
     {
-        userName = u,
+        email = u + "@mail.com",
         password = "cat12345",
-        firstName = "Aa",
-        lastName = "Aa",
-        nickName = "n" + Tag(),
-        gender = "Male",
-        dateOfBirth = "2000-01-01T00:00:00Z",
     };
 
     private static string Field(JsonElement root, params string[] names)
@@ -45,7 +40,7 @@ public class RefreshEndpointSecurityTests
         var reg = await client.PostAsync("/api/Auth/register", JsonBody(RegisterBody(user)));
         Assert.Equal(HttpStatusCode.Created, reg.StatusCode);
         var login = await client.PostAsync("/api/Auth/login",
-            JsonBody(new { userName = user, password = "cat12345" }));
+            JsonBody(new { email = user + "@mail.com", password = "cat12345" }));
         Assert.Equal(HttpStatusCode.OK, login.StatusCode);
         using var doc = JsonDocument.Parse(await login.Content.ReadAsStringAsync());
         var pair = (

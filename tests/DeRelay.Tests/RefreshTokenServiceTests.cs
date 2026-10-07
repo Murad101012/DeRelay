@@ -40,13 +40,15 @@ public class RefreshTokenServiceTests
         }
     }
 
-    private static async Task<int> SeedAppUser(DeRelayDbContext ctx, string userName = "rtuser")
+    private static async Task<int> SeedAppUser(DeRelayDbContext ctx, string email = "rtuser@mail.com")
     {
-        var person = new Person("Rt", "User", userName, Gender.Male, new DateTime(2000, 1, 1));
+        var person = new Person("Rt", "User", email.Split('@')[0], Gender.Male, new DateTime(2000, 1, 1));
         ctx.Persons.Add(person);
         await ctx.SaveChangesAsync();
-        var appUser = new AppUser(userName, "HASH", person.Id);
+        var appUser = new AppUser(email, "HASH");
         ctx.AppUsers.Add(appUser);
+        await ctx.SaveChangesAsync();
+        ctx.Entry(appUser).Property(u => u.PersonId).CurrentValue = person.Id;
         await ctx.SaveChangesAsync();
         return appUser.Id;
     }

@@ -1,5 +1,5 @@
 // Tests written by Muse Spark 1.3 AI
-// Stress: N concurrent registers with the SAME username (separate scopes,
+// Stress: N concurrent registers with the SAME email (separate scopes,
 // one shared database file). Exactly one must win; losers must leave nothing.
 using DeRelay.Core.DTOs.AppUser;
 using DeRelay.Core.Entities;
@@ -17,9 +17,8 @@ namespace DeRelay.Tests;
 
 public class AuthStressTests
 {
-    private static RegisterDto ValidRegister(string userName = "racer") =>
-        new(userName, "cat12345", "Race", "Runner", "racer" + Guid.NewGuid().ToString("N")[..8],
-            Gender.Male, new DateTime(2000, 1, 1));
+    private static RegisterDto ValidRegister(string email = "racer@mail.com") =>
+        new(email, "cat12345");
 
     private sealed class FailingSaveContext(DbContextOptions<DeRelayDbContext> options, int failOnCall) : DeRelayDbContext(options)
     {
@@ -67,17 +66,17 @@ public class AuthStressTests
     }
 
     [Fact]
-    public async Task Register_ConcurrentSameUserName_ExactlyOneWinsNoOrphans()
+    public async Task Register_ConcurrentSameEmail_ExactlyOneWinsNoOrphans()
     {
         var path = NewDbFile();
         try
         {
-            // Nicknames differ per racer so ONLY the username collides.
+            // Same email for every racer: the unique index decides the winner.
             var tasks = Enumerable.Range(0, 8).Select(i => Task.Run(async () =>
             {
                 try
                 {
-                    var dto = ValidRegister("racer") with { Password = "cat12345" };
+                    var dto = ValidRegister("racer@mail.com") with { Password = "cat12345" };
                     await ServiceFor(path).RegisterAsync(dto);
                     return true;
                 }
@@ -94,26 +93,26 @@ public class AuthStressTests
             Assert.Equal(1, results.Count(r => r)); // exactly one winner
             var (persons, users) = Counts(path);
             Assert.Equal(1, users);
-            Assert.Equal(1, persons); // losers' Persons rolled back: no orphans
+            Assert.Equal(0, persons); // register creates no Person rows
         }
         finally { File.Delete(path); }
     }
 
     [Fact]
-    public async Task Register_LoginSaveFails_PersonRolledBack()
+    public async Task Register_LoginSaveFails_UserRolledBack()
     {
         var path = NewDbFile();
         try
         {
-            // Call 1 = Person save (ok), call 2 = AppUser save (throws).
+            // Call 1 = AppUser save (ok), call 2 = final save (throws).
             var failing = ServiceFor(path, failSaveOnCall: 2);
 
             await Assert.ThrowsAsync<InvalidOperationException>(() =>
-                failing.RegisterAsync(ValidRegister("crash")));
+                failing.RegisterAsync(ValidRegister("crash@mail.com")));
 
             var (persons, users) = Counts(path);
-            Assert.Equal(0, persons); // staged Person erased
-            Assert.Equal(0, users);
+            Assert.Equal(0, persons);
+            Assert.Equal(0, users); // staged AppUser erased by rollback
         }
         finally { File.Delete(path); }
     }
