@@ -31,10 +31,12 @@ public class ControllerSecurityTests
         password = "cat12345",
     };
 
-    private async Task<string> RegisterAndLogin(HttpClient client, string user)
+    private async Task<string> RegisterAndLogin(DeRelayWebFactory factory, HttpClient client, string user)
     {
         var reg = await client.PostAsync("/api/Auth/register", JsonBody(RegisterBody(user)));
         Assert.Equal(HttpStatusCode.Created, reg.StatusCode);
+        var confirm = await client.GetAsync($"/api/Auth/confirm?key={factory.ConfirmLink}");
+        Assert.Equal(HttpStatusCode.OK, confirm.StatusCode);
         var login = await client.PostAsync("/api/Auth/login",
             JsonBody(new { email = user + "@mail.com", password = "cat12345" }));
         Assert.Equal(HttpStatusCode.OK, login.StatusCode);
@@ -77,7 +79,7 @@ public class ControllerSecurityTests
     {
         using var factory = new DeRelayWebFactory();
         var client = factory.CreateClient();
-        var token = await RegisterAndLogin(client, "sig" + Tag());
+        var token = await RegisterAndLogin(factory, client, "sig" + Tag());
         UseBearer(client, token);
         await CompleteProfile(client, Tag());
 
@@ -106,7 +108,7 @@ public class ControllerSecurityTests
     {
         using var factory = new DeRelayWebFactory();
         var client = factory.CreateClient();
-        var token = await RegisterAndLogin(client, "tmp" + Tag());
+        var token = await RegisterAndLogin(factory, client, "tmp" + Tag());
         var parts = token.Split('.');
         var sig = parts[2];
         var flipped = sig[..^1] + (sig[^1] == 'X' ? 'Y' : 'X');
@@ -120,7 +122,7 @@ public class ControllerSecurityTests
     {
         using var factory = new DeRelayWebFactory();
         var client = factory.CreateClient();
-        var token = await RegisterAndLogin(client, "exp" + Tag());
+        var token = await RegisterAndLogin(factory, client, "exp" + Tag());
         var sub = new JwtSecurityTokenHandler().ReadJwtToken(token)
             .Claims.First(c => c.Type == "sub").Value;
         UseBearer(client, Mint(sub, DateTime.UtcNow.AddMinutes(-5)));
@@ -134,7 +136,7 @@ public class ControllerSecurityTests
         // The "very short time" case: 10s token must work inside its window.
         using var factory = new DeRelayWebFactory();
         var client = factory.CreateClient();
-        var token = await RegisterAndLogin(client, "s10" + Tag());
+        var token = await RegisterAndLogin(factory, client, "s10" + Tag());
         var sub = new JwtSecurityTokenHandler().ReadJwtToken(token)
             .Claims.First(c => c.Type == "sub").Value;
         UseBearer(client, token);
@@ -150,8 +152,8 @@ public class ControllerSecurityTests
         using var factory = new DeRelayWebFactory();
         var clientA = factory.CreateClient();
         var clientB = factory.CreateClient();
-        var tokenA = await RegisterAndLogin(clientA, "frA" + Tag());
-        var tokenB = await RegisterAndLogin(clientB, "frB" + Tag());
+        var tokenA = await RegisterAndLogin(factory, clientA, "frA" + Tag());
+        var tokenB = await RegisterAndLogin(factory, clientB, "frB" + Tag());
         UseBearer(clientA, tokenA);
         await CompleteProfile(clientA, Tag());
         UseBearer(clientB, tokenB);
@@ -172,13 +174,16 @@ public class ControllerSecurityTests
     }
 
     [Fact]
-    public async Task Register_DuplicateUserName_409()
+    public async Task Register_DuplicateEmail_409()
     {
         using var factory = new DeRelayWebFactory();
         var client = factory.CreateClient();
         var user = "dup" + Tag();
         Assert.Equal(HttpStatusCode.Created,
             (await client.PostAsync("/api/Auth/register", JsonBody(RegisterBody(user)))).StatusCode);
+        // Confirm the first account: a second register for a TAKEN email is 409.
+        Assert.Equal(HttpStatusCode.OK,
+            (await client.GetAsync($"/api/Auth/confirm?key={factory.ConfirmLink}")).StatusCode);
         Assert.Equal(HttpStatusCode.Conflict,
             (await client.PostAsync("/api/Auth/register", JsonBody(RegisterBody(user)))).StatusCode);
     }

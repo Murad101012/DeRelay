@@ -20,10 +20,6 @@ namespace DeRelay.Tests;
 
 public class RefreshTokenServiceTests
 {
-    // NOTE: silenced until the pending-flow test commit at the tip of this branch.
-    // The bodies below target the post-confirm shapes and do not compile against
-    // this step's source yet; they are restored verbatim there. Do not extend here.
-#if false
     private sealed class Scope : IAsyncDisposable
     {
         public DeRelayDbContext Context { get; }
@@ -395,5 +391,4 @@ public class RefreshTokenServiceTests
             new UserRefreshTokenDto(live.RefreshToken));
         Assert.NotEqual(live.RefreshToken, live2.RefreshToken);
     }
-#endif
 }

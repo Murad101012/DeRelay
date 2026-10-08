@@ -20,10 +20,6 @@ namespace DeRelay.Tests;
 
 public class AuthStressTests
 {
-    // NOTE: silenced until the pending-flow test commit at the tip of this branch.
-    // The bodies below target the post-confirm shapes and do not compile against
-    // this step's source yet; they are restored verbatim there. Do not extend here.
-#if false
     private static RegisterDto ValidRegister(string email = "racer@mail.com") =>
         new(email, "cat12345");
 
@@ -151,5 +147,4 @@ public class AuthStressTests
         }
         finally { File.Delete(path); }
     }
-#endif
 }

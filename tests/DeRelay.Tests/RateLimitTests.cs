@@ -23,10 +23,12 @@ public class RateLimitTests
         password = "cat12345",
     };
 
-    private async Task<string> LoginRefreshToken(HttpClient client, string user)
+    private async Task<string> LoginRefreshToken(DeRelayWebFactory factory, HttpClient client, string user)
     {
         var reg = await client.PostAsync("/api/Auth/register", JsonBody(RegisterBody(user)));
         Assert.Equal(HttpStatusCode.Created, reg.StatusCode);
+        var confirm = await client.GetAsync($"/api/Auth/confirm?key={factory.ConfirmLink}");
+        Assert.Equal(HttpStatusCode.OK, confirm.StatusCode);
         var login = await client.PostAsync("/api/Auth/login",
             JsonBody(new { email = user + "@mail.com", password = "cat12345" }));
         Assert.Equal(HttpStatusCode.OK, login.StatusCode);
@@ -42,6 +44,8 @@ public class RateLimitTests
         var user = "rl" + Tag();
         var reg = await client.PostAsync("/api/Auth/register", JsonBody(RegisterBody(user)));
         Assert.Equal(HttpStatusCode.Created, reg.StatusCode);
+        var confirm = await client.GetAsync($"/api/Auth/confirm?key={factory.ConfirmLink}");
+        Assert.Equal(HttpStatusCode.OK, confirm.StatusCode);
 
         HttpStatusCode eighth = 0;
         for (var i = 0; i < 8; i++)
@@ -63,6 +67,8 @@ public class RateLimitTests
         var user = "rle" + Tag();
         var reg = await client.PostAsync("/api/Auth/register", JsonBody(RegisterBody(user)));
         Assert.Equal(HttpStatusCode.Created, reg.StatusCode);
+        var confirm = await client.GetAsync($"/api/Auth/confirm?key={factory.ConfirmLink}");
+        Assert.Equal(HttpStatusCode.OK, confirm.StatusCode);
 
         HttpResponseMessage? rejected = null;
         for (var i = 0; i < 8 && rejected is null; i++)
@@ -86,7 +92,7 @@ public class RateLimitTests
     {
         using var factory = new DeRelayWebFactory();
         var client = factory.CreateClient();
-        var token = await LoginRefreshToken(client, "rr" + Tag());
+        var token = await LoginRefreshToken(factory, client, "rr" + Tag());
 
         HttpStatusCode fifth = 0;
         for (var i = 0; i < 5; i++)
@@ -111,7 +117,7 @@ public class RateLimitTests
     {
         using var factory = new DeRelayWebFactory();
         var client = factory.CreateClient();
-        var token = await LoginRefreshToken(client, "rw" + Tag());
+        var token = await LoginRefreshToken(factory, client, "rw" + Tag());
 
         for (var i = 0; i < 4; i++)
         {

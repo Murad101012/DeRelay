@@ -23,10 +23,6 @@ namespace DeRelay.Tests;
 
 public class AuthLoginTests
 {
-    // NOTE: silenced until the pending-flow test commit at the tip of this branch.
-    // The bodies below target the post-confirm shapes and do not compile against
-    // this step's source yet; they are restored verbatim there. Do not extend here.
-#if false
     // Deterministic confirmation link: the stub RNG always issues this token,
     // so tests can walk register -> confirm -> login like a user with mail.
     private const string FixedConfirmLink = "TEST-CONFIRM-LINK";
@@ -190,5 +186,4 @@ public class AuthLoginTests
         Assert.Equal(0, await scope.Context.Persons.CountAsync());
         Assert.Equal(1, await scope.Context.AppUsers.CountAsync());
     }
-#endif
 }
