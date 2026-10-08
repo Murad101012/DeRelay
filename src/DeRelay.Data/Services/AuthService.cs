@@ -7,9 +7,7 @@ using DeRelay.Core.DTOs.TokenPair;
 using DeRelay.Core.Entities;
 using DeRelay.Core.Exceptions;
 using DeRelay.Core.Interfaces;
-using DeRelay.Core.Mappers;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
 namespace DeRelay.Data.Services;
@@ -19,36 +17,60 @@ public class AuthService(DeRelayDbContext deRelayDbContext
     ,IPasswordHasher<AppUser> passwordHasher
     ,SigningCredentials signingCredentials
     ,IAppUserService iAppUserService
-    ,IRefreshTokenService iRefreshTokenService): IAuthService
+    ,IRefreshTokenService iRefreshTokenService
+    ,IPendingRegistrationService iPendingRegistrationService): IAuthService
 {
     /// <summary>
-    /// Register new person and return newly created ID from Persons table
+    /// Add new user into pending table until it confirmed the link, or it's expired
     /// </summary>
-    public async Task<int> RegisterAsync(RegisterDto dto)
+    public async Task RegisterAsPending(RegisterDto dto)
     {
         if (await iAppUserService.CheckIfEmailAvailableInAppUser(dto.Email))
-            throw new AlreadyExistsException($"{dto.Email} is already in use, please use another username");
+            throw new AlreadyExistsException($"{dto.Email} is already in use");
         
-        await using var transaction = await deRelayDbContext.Database.BeginTransactionAsync();
-        try
+        //TODO: Learn why this gets null! as parameter
+        var passwordHash = passwordHasher.HashPassword(null!, dto.Password);
+        
+        var pendingRegistration = await iPendingRegistrationService.ReturnPendingRegistrationByEmail(dto.Email);
+        if (pendingRegistration == null)
         {
-            //TODO: Learn why this gets null! as parameter
-            var passwordHash = passwordHasher.HashPassword(null!, dto.Password);
-
-            int newAppUserId = await iAppUserService.CreateAppUserAsync(dto.Email, passwordHash);
-            await deRelayDbContext.SaveChangesAsync();
-            await transaction.CommitAsync();
-
-            return newAppUserId;
+            await iPendingRegistrationService.Create(dto.Email, passwordHash);
         }
-        catch
+        else if(pendingRegistration.ConfirmationExpiry < DateTime.UtcNow)
         {
-            await transaction.RollbackAsync();
-            deRelayDbContext.ChangeTracker.Clear();
-            throw;
+            await iPendingRegistrationService.Delete(pendingRegistration);
+            await iPendingRegistrationService.Create(dto.Email, passwordHash);
         }
+        else
+        {
+            throw new AlreadyExistsException
+                ("Email already waiting to be confirmed. Please check your inbox or spam box");
+        }
+        
+        await deRelayDbContext.SaveChangesAsync();
     }
-    
+
+    /*TODO: If user accidentally click twice at the very same time and
+     both of them reach at the very same time to server, potentially second try cause 500 error in Database.
+     It's because in first confirm time user clicked link first time, AppUser already created with that e-mail,
+     and second attempt to write again to Database caught and throw error
+     Since this error doesn't cause any problem as data integrity, it's postponed for now.*/
+    public async Task AcceptConfirmationLink(string link)
+    {
+        var pendingRegistration = await iPendingRegistrationService.ValidateConfirmationLink(link);
+        // Twin request already won (or direct account exists): idempotent success,
+        // never a duplicate user — the unique Email index stays the backstop.
+        if (await iAppUserService.ReturnAppUserByEmail(pendingRegistration.Email) is not null)
+        {
+            await iPendingRegistrationService.Delete(pendingRegistration);
+            await deRelayDbContext.SaveChangesAsync();
+            return;
+        }
+        await iAppUserService.CreateAppUserAsync(pendingRegistration.Email, pendingRegistration.HashedPassword);
+        await iPendingRegistrationService.Delete(pendingRegistration);
+        await deRelayDbContext.SaveChangesAsync();
+    }
+
     public async Task<int> CompleteProfile(CreatePersonDto dto, int appUserId)
     {
         var appUser = await iAppUserService.ReturnAppUserByIdAsync(appUserId);
@@ -67,7 +89,7 @@ public class AuthService(DeRelayDbContext deRelayDbContext
         //Checking the user found  || Checking if the password is correct
         if (appUser == null || passwordHasher.VerifyHashedPassword(null!, appUser.PasswordHash, dto.Password) 
             == PasswordVerificationResult.Failed)
-            throw new ValidationException("Wrong password or username, please try again");
+            throw new ValidationException("Wrong password or email, please try again");
         
         //Creating Refresh Token
         var returnNewRefreshTokenDto = await iRefreshTokenService.CreateRefreshTokenWithNewSession(appUser.Id);

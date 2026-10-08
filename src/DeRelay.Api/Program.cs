@@ -6,6 +6,7 @@ using DeRelay.Api.Extensions;
 using DeRelay.Api.Middlewares;
 using DeRelay.Core.Entities;
 using DeRelay.Core.Interfaces;
+using DeRelay.Core.Security;
 using DeRelay.Core.Validators.Person;
 using DeRelay.Core.Validators.FriendRequest;
 using DeRelay.Core.Validators.Friendship;
@@ -31,6 +32,8 @@ builder.Services.AddScoped<IFriendRequestService, FriendRequestService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IAppUserService, AppUserService>();
 builder.Services.AddScoped<IRefreshTokenService, RefreshTokenService>();
+builder.Services.AddScoped<IPendingRegistrationService, PendingRegistrationService>();
+builder.Services.AddScoped<IRandomNumberGeneratorToBase64, RandomNumberGeneratorToBase64>();
 #endregion
 
 #region Framework AddScoped

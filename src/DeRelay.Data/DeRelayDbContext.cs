@@ -11,6 +11,7 @@ public class DeRelayDbContext(DbContextOptions<DeRelayDbContext> options) : DbCo
     public DbSet<Friendship> Friendships { get; set; }
     public DbSet<AppUser> AppUsers { get; set; }
     public DbSet<RefreshToken> RefreshToken { get; set; }
+    public DbSet<PendingRegistration> PendingRegistrations { get; set; }
     
     protected override void OnModelCreating(ModelBuilder b)
     {
