@@ -13,7 +13,8 @@ public interface IAuthService
     /// </summary>
     /// <remarks>In this step, only Account (AppUser) created.
     /// Actual Profile (Person) created with <see cref="CompleteProfile"/></remarks>
-    public Task<int> RegisterAsync(RegisterDto dto);
+    public Task RegisterAsPending(RegisterDto dto);
+    public Task AcceptConfirmationLink(string link);
     public Task<int> CompleteProfile(CreatePersonDto dto, int appUserId);
     public Task<JwtAndRefreshTokensDto> LoginAsync(LoginDto dto);
     public Task DeleteAccountAsync(int appUserId);
