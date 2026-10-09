@@ -11,18 +11,19 @@ namespace DeRelay.Data.Services;
 public class PendingRegistrationService(
     DeRelayDbContext deRelayDbContext,
     IConfiguration iConfiguration,
-    IRandomNumberGeneratorToBase64 iRandomNumberGeneratorToBase64): IPendingRegistrationService
+    ITokenGenerator iTokenGenerator): IPendingRegistrationService
 {
     private readonly string _secretKey = iConfiguration["Confirmation:Key"] ?? 
                                throw new InvalidOperationException("Confirmation:Key is missing");
     
-    public async Task Create(string email, string hashedPassword)
+    public async Task<string> Create(string email, string hashedPassword)
     {
         var newPendingRegistration = new PendingRegistration(email, hashedPassword);
-        var confirmationLink = iRandomNumberGeneratorToBase64.GenerateRandomToken();
+        var confirmationLink = iTokenGenerator.GenerateAsBase64Url();
         newPendingRegistration.Hash = HashConfirmationLink(confirmationLink);
         await deRelayDbContext.PendingRegistrations.AddAsync(newPendingRegistration);
         await deRelayDbContext.SaveChangesAsync();
+        return confirmationLink;
     }
 
     public async Task Delete(PendingRegistration pendingRegistration)
@@ -48,13 +49,17 @@ public class PendingRegistrationService(
                                         "It could be expired or never registered with the corresponding email." +
                                         " Please register again.");
         }
-        if (pendingRegistration.LinkExpiry < DateTime.UtcNow)
-        {
-            throw new UnauthorizedException("Link expired. Please register again.");
-        }
-        
-        return pendingRegistration;
+        return pendingRegistration.ConfirmationExpiry < DateTime.UtcNow ? 
+            throw new UnauthorizedException("Link expired. Please register again.") : pendingRegistration;
     }
+
+    public async Task<int> DeleteExpiredAllPendingRegistrations(CancellationToken stoppingToken)
+    {
+        return await deRelayDbContext.PendingRegistrations.
+            Where(pg => pg.LinkExpiry < DateTime.UtcNow).
+            ExecuteDeleteAsync(stoppingToken);
+    }
+    
 
     private string HashConfirmationLink(string confirmationLink)
     {

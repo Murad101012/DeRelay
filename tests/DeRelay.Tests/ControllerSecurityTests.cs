@@ -35,7 +35,8 @@ public class ControllerSecurityTests
     {
         var reg = await client.PostAsync("/api/Auth/register", JsonBody(RegisterBody(user)));
         Assert.Equal(HttpStatusCode.Created, reg.StatusCode);
-        var confirm = await client.GetAsync($"/api/Auth/confirm?key={factory.ConfirmLink}");
+        var link = factory.IssuedLinks.Last();
+        var confirm = await client.GetAsync($"/api/Auth/confirm?key={link}");
         Assert.Equal(HttpStatusCode.OK, confirm.StatusCode);
         var login = await client.PostAsync("/api/Auth/login",
             JsonBody(new { email = user + "@mail.com", password = "cat12345" }));
@@ -183,7 +184,7 @@ public class ControllerSecurityTests
             (await client.PostAsync("/api/Auth/register", JsonBody(RegisterBody(user)))).StatusCode);
         // Confirm the first account: a second register for a TAKEN email is 409.
         Assert.Equal(HttpStatusCode.OK,
-            (await client.GetAsync($"/api/Auth/confirm?key={factory.ConfirmLink}")).StatusCode);
+            (await client.GetAsync($"/api/Auth/confirm?key={factory.IssuedLinks.Last()}")).StatusCode);
         Assert.Equal(HttpStatusCode.Conflict,
             (await client.PostAsync("/api/Auth/register", JsonBody(RegisterBody(user)))).StatusCode);
     }

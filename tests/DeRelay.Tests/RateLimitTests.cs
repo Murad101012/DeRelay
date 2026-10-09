@@ -27,7 +27,8 @@ public class RateLimitTests
     {
         var reg = await client.PostAsync("/api/Auth/register", JsonBody(RegisterBody(user)));
         Assert.Equal(HttpStatusCode.Created, reg.StatusCode);
-        var confirm = await client.GetAsync($"/api/Auth/confirm?key={factory.ConfirmLink}");
+        var link = factory.IssuedLinks.Last();
+        var confirm = await client.GetAsync($"/api/Auth/confirm?key={link}");
         Assert.Equal(HttpStatusCode.OK, confirm.StatusCode);
         var login = await client.PostAsync("/api/Auth/login",
             JsonBody(new { email = user + "@mail.com", password = "cat12345" }));
@@ -44,7 +45,8 @@ public class RateLimitTests
         var user = "rl" + Tag();
         var reg = await client.PostAsync("/api/Auth/register", JsonBody(RegisterBody(user)));
         Assert.Equal(HttpStatusCode.Created, reg.StatusCode);
-        var confirm = await client.GetAsync($"/api/Auth/confirm?key={factory.ConfirmLink}");
+        var link = factory.IssuedLinks.Last();
+        var confirm = await client.GetAsync($"/api/Auth/confirm?key={link}");
         Assert.Equal(HttpStatusCode.OK, confirm.StatusCode);
 
         HttpStatusCode eighth = 0;
@@ -67,7 +69,8 @@ public class RateLimitTests
         var user = "rle" + Tag();
         var reg = await client.PostAsync("/api/Auth/register", JsonBody(RegisterBody(user)));
         Assert.Equal(HttpStatusCode.Created, reg.StatusCode);
-        var confirm = await client.GetAsync($"/api/Auth/confirm?key={factory.ConfirmLink}");
+        var link = factory.IssuedLinks.Last();
+        var confirm = await client.GetAsync($"/api/Auth/confirm?key={link}");
         Assert.Equal(HttpStatusCode.OK, confirm.StatusCode);
 
         HttpResponseMessage? rejected = null;

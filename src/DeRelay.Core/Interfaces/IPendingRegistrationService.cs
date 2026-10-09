@@ -4,7 +4,7 @@ namespace DeRelay.Core.Interfaces;
 
 public interface IPendingRegistrationService
 {
-    Task Create(string email, string hashedPassword);
+    Task<string> Create(string email, string hashedPassword);
     Task Delete(PendingRegistration pendingRegistration);
     Task<PendingRegistration?> ReturnPendingRegistrationByEmail(string email);
     /// <summary>
@@ -13,4 +13,6 @@ public interface IPendingRegistrationService
     /// <param name="confirmationLink">Variable value in the link after '?key='/</param>
     /// <returns></returns>
     Task<PendingRegistration> ValidateConfirmationLink(string confirmationLink);
+
+    Task<int> DeleteExpiredAllPendingRegistrations(CancellationToken stoppingToken);
 }

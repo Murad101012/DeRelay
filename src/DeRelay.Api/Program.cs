@@ -33,7 +33,8 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IAppUserService, AppUserService>();
 builder.Services.AddScoped<IRefreshTokenService, RefreshTokenService>();
 builder.Services.AddScoped<IPendingRegistrationService, PendingRegistrationService>();
-builder.Services.AddScoped<IRandomNumberGeneratorToBase64, RandomNumberGeneratorToBase64>();
+builder.Services.AddScoped<ITokenGenerator, TokenGenerator>();
+builder.Services.AddScoped<IEmailService, EmailService>();
 #endregion
 
 #region Framework AddScoped
@@ -175,7 +176,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     
 builder.Services.AddAuthorization();
 
-builder.Services.AddHostedService<RefreshTokenCleanupService>();
+builder.Services.AddHostedService<DataCleanupService>();
 
 var app = builder.Build();
 

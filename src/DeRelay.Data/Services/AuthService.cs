@@ -8,7 +8,10 @@ using DeRelay.Core.Entities;
 using DeRelay.Core.Exceptions;
 using DeRelay.Core.Interfaces;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
+using Npgsql;
 
 namespace DeRelay.Data.Services;
 
@@ -18,7 +21,9 @@ public class AuthService(DeRelayDbContext deRelayDbContext
     ,SigningCredentials signingCredentials
     ,IAppUserService iAppUserService
     ,IRefreshTokenService iRefreshTokenService
-    ,IPendingRegistrationService iPendingRegistrationService): IAuthService
+    ,IPendingRegistrationService iPendingRegistrationService
+    ,IEmailService iEmailService
+    ,ILogger<AuthService> iLogger): IAuthService
 {
     /// <summary>
     /// Add new user into pending table until it confirmed the link, or it's expired
@@ -32,14 +37,16 @@ public class AuthService(DeRelayDbContext deRelayDbContext
         var passwordHash = passwordHasher.HashPassword(null!, dto.Password);
         
         var pendingRegistration = await iPendingRegistrationService.ReturnPendingRegistrationByEmail(dto.Email);
+        string link;
+        await using var transaction = await deRelayDbContext.Database.BeginTransactionAsync();
         if (pendingRegistration == null)
         {
-            await iPendingRegistrationService.Create(dto.Email, passwordHash);
+            link = await iPendingRegistrationService.Create(dto.Email, passwordHash);
         }
         else if(pendingRegistration.ConfirmationExpiry < DateTime.UtcNow)
         {
             await iPendingRegistrationService.Delete(pendingRegistration);
-            await iPendingRegistrationService.Create(dto.Email, passwordHash);
+            link = await iPendingRegistrationService.Create(dto.Email, passwordHash);
         }
         else
         {
@@ -48,6 +55,23 @@ public class AuthService(DeRelayDbContext deRelayDbContext
         }
         
         await deRelayDbContext.SaveChangesAsync();
+
+        var message = $"Welcome to Dancing Line!\n\n" +
+                      $"Confirm your account within 24 hours by opening this link:\n\n" +
+                      $"https://derelay.sunnygameai.site/api/Auth/confirm?key={link}\n\n" +
+                      $"If you didn't register, just ignore this mail.";
+
+        try
+        {
+            await iEmailService.SendEmailAsync(dto.Email, "Confirm your Dancing Line account", message);
+            await transaction.CommitAsync();
+        }
+        catch (Exception e)
+        {
+            iLogger.LogError(e, "Error sending email");
+            await transaction.RollbackAsync();
+            throw;
+        }
     }
 
     /*TODO: If user accidentally click twice at the very same time and
@@ -58,17 +82,25 @@ public class AuthService(DeRelayDbContext deRelayDbContext
     public async Task AcceptConfirmationLink(string link)
     {
         var pendingRegistration = await iPendingRegistrationService.ValidateConfirmationLink(link);
-        // Twin request already won (or direct account exists): idempotent success,
-        // never a duplicate user — the unique Email index stays the backstop.
-        if (await iAppUserService.ReturnAppUserByEmail(pendingRegistration.Email) is not null)
+        try
         {
-            await iPendingRegistrationService.Delete(pendingRegistration);
+            if (await iAppUserService.ReturnAppUserByEmail(pendingRegistration.Email) != null)
+            {
+                throw new AlreadyExistsException("Email already confirmed, please proceed to log in.");
+            }
+            await iAppUserService.CreateAppUserAsync(pendingRegistration.Email, pendingRegistration.HashedPassword);
             await deRelayDbContext.SaveChangesAsync();
-            return;
         }
-        await iAppUserService.CreateAppUserAsync(pendingRegistration.Email, pendingRegistration.HashedPassword);
-        await iPendingRegistrationService.Delete(pendingRegistration);
-        await deRelayDbContext.SaveChangesAsync();
+        catch (DbUpdateException e)
+        {
+            //NOTE: Learn about basic SqlState errors, exception to catch
+            if (e.InnerException is PostgresException pg && pg.SqlState == "23505")
+            {
+                throw new AlreadyExistsException("Email already confirmed, please proceed to log in.");
+            }
+            iLogger.LogError(e, "Error when confirming the email");
+            throw;
+        }
     }
 
     public async Task<int> CompleteProfile(CreatePersonDto dto, int appUserId)
