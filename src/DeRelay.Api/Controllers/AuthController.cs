@@ -65,7 +65,6 @@ public class AuthController(
         }
     }
     
-    
     [Authorize]
     [HttpPost("complete-profile")]
     [EnableRateLimiting("create-full-account")]

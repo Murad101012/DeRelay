@@ -22,9 +22,6 @@ namespace DeRelay.Tests;
 
 public class PendingRegistrationTests
 {
-    // NOTE: silenced until the test commit at tip (shapes target the new flow).
-    // Restored verbatim there. Do not extend here.
-#if false
     private const string FixedLink = "PENDING-TEST-LINK";
 
     private sealed class StubRng : ITokenGenerator
@@ -262,5 +259,4 @@ public class PendingRegistrationTests
         await scope.Service.AcceptConfirmationLink(link);
         Assert.Equal(1, await scope.Context.AppUsers.CountAsync());
     }
-#endif
 }

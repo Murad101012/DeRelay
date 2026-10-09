@@ -21,9 +21,6 @@ namespace DeRelay.Tests;
 
 public class RefreshTokenServiceTests
 {
-    // NOTE: silenced until the test commit at tip (shapes target the new flow).
-    // Restored verbatim there. Do not extend here.
-#if false
     private sealed class Scope : IAsyncDisposable
     {
         public DeRelayDbContext Context { get; }
@@ -405,5 +402,4 @@ public class RefreshTokenServiceTests
             new UserRefreshTokenDto(live.RefreshToken));
         Assert.NotEqual(live.RefreshToken, live2.RefreshToken);
     }
-#endif
 }

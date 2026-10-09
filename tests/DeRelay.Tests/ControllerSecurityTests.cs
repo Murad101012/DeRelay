@@ -148,6 +148,40 @@ public class ControllerSecurityTests
     }
 
     [Fact]
+    public async Task OnboardingJourney_NoProfileBlockedProfileUnblocks()
+    {
+        using var factory = new DeRelayWebFactory();
+        var clientA = factory.CreateClient();
+        var clientB = factory.CreateClient();
+        var tokenA = await RegisterAndLogin(factory, clientA, "jrA" + Tag());
+        var tokenB = await RegisterAndLogin(factory, clientB, "jrB" + Tag());
+        UseBearer(clientA, tokenA);
+        UseBearer(clientB, tokenB);
+        await CompleteProfile(clientB, Tag());
+
+        // Receiver person id = B's fresh profile.
+        int receiverPersonId;
+        using (var scope = factory.Services.CreateScope())
+        {
+            var ctx = scope.ServiceProvider.GetRequiredService<DeRelayDbContext>();
+            receiverPersonId = await ctx.Persons
+                .OrderByDescending(p => p.Id).Select(p => p.Id).FirstAsync();
+        }
+
+        // No profile yet: gated.
+        var blocked = await clientA.PostAsync("/api/FriendRequest",
+            JsonBody(new { receiverId = receiverPersonId }));
+        Assert.Equal(HttpStatusCode.NotFound, blocked.StatusCode);
+
+        // Complete profile: same request succeeds.
+        await CompleteProfile(clientA, Tag());
+        var send = await clientA.PostAsync("/api/FriendRequest",
+            JsonBody(new { receiverId = receiverPersonId }));
+        Assert.Equal(HttpStatusCode.Created, send.StatusCode);
+        _ = tokenB;
+    }
+
+    [Fact]
     public async Task CrossUser_FriendRequestFlow_OverHttp()
     {
         using var factory = new DeRelayWebFactory();
@@ -172,6 +206,34 @@ public class ControllerSecurityTests
         var send = await clientA.PostAsync("/api/FriendRequest",
             JsonBody(new { receiverId = receiverPersonId }));
         Assert.Equal(HttpStatusCode.Created, send.StatusCode);
+    }
+
+    [Fact]
+    public async Task HasProfile_FalseBeforeTrueAfterCompletion()
+    {
+        using var factory = new DeRelayWebFactory();
+        var client = factory.CreateClient();
+        var token = await RegisterAndLogin(factory, client, "hp" + Tag());
+        UseBearer(client, token);
+
+        var before = await client.GetAsync("/api/AppUser/profile-creation-check");
+        Assert.Equal(HttpStatusCode.OK, before.StatusCode);
+        Assert.Equal("false", await before.Content.ReadAsStringAsync());
+
+        await CompleteProfile(client, Tag());
+
+        var after = await client.GetAsync("/api/AppUser/profile-creation-check");
+        Assert.Equal(HttpStatusCode.OK, after.StatusCode);
+        Assert.Equal("true", await after.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
+    public async Task HasProfile_Naked_401()
+    {
+        using var factory = new DeRelayWebFactory();
+        var client = factory.CreateClient();
+        Assert.Equal(HttpStatusCode.Unauthorized,
+            (await client.GetAsync("/api/AppUser/profile-creation-check")).StatusCode);
     }
 
     [Fact]

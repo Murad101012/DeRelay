@@ -55,8 +55,8 @@ public class FriendRequestService(
             throw new NotFoundException("Couldn't find friend request for these persons to accept");
         
         var friendRequest =
-            await deRelayDbContext.FriendRequests.FindAsync(appUser.PersonId, dto.ReceiverId)
-            ?? await deRelayDbContext.FriendRequests.FindAsync(dto.ReceiverId, appUser.PersonId)
+            await deRelayDbContext.FriendRequests.FindAsync(appUser.ValidatePersonIdAndReturn(), dto.ReceiverId)
+            ?? await deRelayDbContext.FriendRequests.FindAsync(dto.ReceiverId, appUser.ValidatePersonIdAndReturn())
             ?? throw new NotFoundException("Friend request not found");
         await iFriendshipService.AddFriendAsync(appUserId, dto.ReceiverId);
         RemoveFriendRequest(friendRequest);
@@ -80,8 +80,8 @@ public class FriendRequestService(
             throw new NotFoundException("Couldn't find friend request for these persons to decline");
         
         var friendRequest =
-            await deRelayDbContext.FriendRequests.FindAsync(appUser.PersonId, dto.ReceiverId)
-            ?? await deRelayDbContext.FriendRequests.FindAsync(dto.ReceiverId, appUser.PersonId)
+            await deRelayDbContext.FriendRequests.FindAsync(appUser.ValidatePersonIdAndReturn(), dto.ReceiverId)
+            ?? await deRelayDbContext.FriendRequests.FindAsync(dto.ReceiverId, appUser.ValidatePersonIdAndReturn())
             ?? throw new NotFoundException("Friend request not found");
         RemoveFriendRequest(friendRequest);
         await deRelayDbContext.SaveChangesAsync();
@@ -90,9 +90,10 @@ public class FriendRequestService(
     public async Task<ReturnPersonAllFriendRequestReceivedDto> GetAllFriendRequestOfUserReceivedByIdAsync(int appUserId)
     {
         var appUser = await iAppUserService.ReturnAppUserByIdAsync(appUserId);
+        int personId = appUser.ValidatePersonIdAndReturn();
         return new ReturnPersonAllFriendRequestReceivedDto(await deRelayDbContext.FriendRequests
             .AsNoTracking()
-            .Where(x => x.ReceiverId == appUser.PersonId)
+            .Where(x => x.ReceiverId == personId)
             .Select(x => x.SenderId)
             .ToListAsync());
     }
@@ -100,9 +101,10 @@ public class FriendRequestService(
     public async Task<ReturnPersonAllFriendRequestSentDto> GetAllFriendRequestOfUserSentByIdAsync(int appUserId)
     {
         var appUser = await iAppUserService.ReturnAppUserByIdAsync(appUserId);
+        int personId = appUser.ValidatePersonIdAndReturn();
         return new ReturnPersonAllFriendRequestSentDto(await deRelayDbContext.FriendRequests
             .AsNoTracking()
-            .Where(x => x.SenderId == appUser.PersonId)
+            .Where(x => x.SenderId == personId)
             .Select(x => x.ReceiverId)
             .ToListAsync());
     }

@@ -12,6 +12,8 @@ public class AppUser
     public string Email { get; private set; }
     public string PasswordHash { get; private set; }
 
+    //TODO: Solve accidentaly getting value from PersonId with CI when I learn
+    /// <remarks><code>DO NOT GET VALUE FROM THIS VARIABLE!!!</code> Instead use <see cref="ValidatePersonIdAndReturn"/></remarks>
     public int? PersonId { get; private set; }
 
     public DateTime CreatedOn { get; private set; }

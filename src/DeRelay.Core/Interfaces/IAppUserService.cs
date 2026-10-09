@@ -13,4 +13,5 @@ public interface IAppUserService
     public Task<bool> CheckIfEmailAvailableInAppUser(string email);
     public Task<AppUser?> ReturnAppUserByEmail(string email);
     public string NormalizeEmail(string email);
+    public Task<bool> CheckHasProfile(int appUserId);
 }

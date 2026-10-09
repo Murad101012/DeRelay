@@ -48,4 +48,11 @@ public class AppUserService(DeRelayDbContext deRelayDbContext): IAppUserService
     {
         return email.Trim().ToLowerInvariant();
     }
+
+    public async Task<bool> CheckHasProfile(int appUserId)
+    {
+        var appUser = await deRelayDbContext.AppUsers.FirstOrDefaultAsync(appUser => appUser.Id == appUserId);
+        if (appUser == null) throw new NotFoundException("Account couldn't found");
+        return appUser.PersonId != null;
+    }
 }

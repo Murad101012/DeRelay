@@ -21,9 +21,6 @@ namespace DeRelay.Tests;
 
 public class AuthStressTests
 {
-    // NOTE: silenced until the test commit at tip (shapes target the new flow).
-    // Restored verbatim there. Do not extend here.
-#if false
     private static RegisterDto ValidRegister(string email = "racer@mail.com") =>
         new(email, "cat12345");
 
@@ -162,5 +159,4 @@ public class AuthStressTests
         }
         finally { File.Delete(path); }
     }
-#endif
 }
