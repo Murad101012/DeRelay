@@ -12,7 +12,8 @@ public class DeRelayDbContext(DbContextOptions<DeRelayDbContext> options) : DbCo
     public DbSet<AppUser> AppUsers { get; set; }
     public DbSet<RefreshToken> RefreshToken { get; set; }
     public DbSet<PendingRegistration> PendingRegistrations { get; set; }
-    
+    public DbSet<PasswordReset> PasswordReset { get; set; }
+
     protected override void OnModelCreating(ModelBuilder b)
     {
         b.ApplyConfigurationsFromAssembly(typeof(PersonConfiguration).Assembly);
