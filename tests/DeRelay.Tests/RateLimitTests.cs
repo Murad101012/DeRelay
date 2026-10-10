@@ -21,6 +21,7 @@ public class RateLimitTests
     {
         email = u + "@mail.com",
         password = "cat12345",
+        passwordVerify = "cat12345",
     };
 
     private async Task<string> LoginRefreshToken(DeRelayWebFactory factory, HttpClient client, string user)
