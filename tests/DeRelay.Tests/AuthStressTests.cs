@@ -22,7 +22,7 @@ namespace DeRelay.Tests;
 public class AuthStressTests
 {
     private static RegisterDto ValidRegister(string email = "racer@mail.com") =>
-        new(email, "cat12345");
+        new(email, "cat12345", "cat12345");
 
     private sealed class FailingSaveContext(DbContextOptions<DeRelayDbContext> options, int failOnCall) : DeRelayDbContext(options)
     {

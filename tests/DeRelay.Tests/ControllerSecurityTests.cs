@@ -29,6 +29,7 @@ public class ControllerSecurityTests
     {
         email = u + "@mail.com",
         password = "cat12345",
+        passwordVerify = "cat12345",
     };
 
     private async Task<string> RegisterAndLogin(DeRelayWebFactory factory, HttpClient client, string user)

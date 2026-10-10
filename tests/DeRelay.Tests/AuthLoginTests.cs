@@ -85,7 +85,7 @@ public class AuthLoginTests
     }
 
     private static RegisterDto ValidRegister(string email = "aysel@mail.com") =>
-        new(email, "cat12345");
+        new(email, "cat12345", "cat12345");
 
     private static async Task<int> RegisterConfirmedAsync(Scope scope, string email = "aysel@mail.com")
     {

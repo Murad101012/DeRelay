@@ -8,7 +8,7 @@ namespace DeRelay.Tests;
 public class AuthValidatorTests
 {
     private static RegisterDto ValidRegister(string email = "aysel@mail.com", string password = "cat12345") =>
-        new(email, password);
+        new(email, password, password);
 
     [Fact]
     public void Register_Correct_Passes()
@@ -36,6 +36,21 @@ public class AuthValidatorTests
     {
         new RegisterDtoValidator().TestValidate(ValidRegister(new string('a', 250) + "@b.co"))
             .ShouldHaveValidationErrorFor(x => x.Email);
+    }
+
+    [Fact]
+    public void Register_MatchingVerify_Passes()
+    {
+        new RegisterDtoValidator().TestValidate(new RegisterDto("aysel@mail.com", "cat12345", "cat12345"))
+            .ShouldNotHaveAnyValidationErrors();
+    }
+
+    [Fact]
+    public void Register_MismatchedVerify_Fails()
+    {
+        var mismatch = new RegisterDtoValidator().TestValidate(
+            new RegisterDto("aysel@mail.com", "cat12345", "cat12346"));
+        Assert.False(mismatch.IsValid);
     }
 
     [Fact]

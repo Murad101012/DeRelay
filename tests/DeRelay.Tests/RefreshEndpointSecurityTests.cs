@@ -23,6 +23,7 @@ public class RefreshEndpointSecurityTests
     {
         email = u + "@mail.com",
         password = "cat12345",
+        passwordVerify = "cat12345",
     };
 
     private static string Field(JsonElement root, params string[] names)

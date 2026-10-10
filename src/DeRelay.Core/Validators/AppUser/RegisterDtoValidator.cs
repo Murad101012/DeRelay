@@ -19,5 +19,8 @@ public class RegisterDtoValidator: AbstractValidator<RegisterDto>
                               password.Length <= AppUserConstraints.PasswordLengthMax).
             WithMessage($"Password must be between {AppUserConstraints.PasswordLengthMin} and " +
                         $"{AppUserConstraints.PasswordLengthMax} characters long.");
+
+        RuleFor(x => x).Must(x => x.Password == x.PasswordVerify).
+            WithMessage("Passwords don't match, please be sure passwords are same");
     }
 }

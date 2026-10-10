@@ -79,7 +79,7 @@ public class PendingRegistrationTests
     }
 
     private static RegisterDto ValidRegister(string email = "pend@mail.com") =>
-        new(email, "cat12345");
+        new(email, "cat12345", "cat12345");
 
     [Fact]
     public async Task Register_CreatesPendingRow_HashNotPlaintext()
