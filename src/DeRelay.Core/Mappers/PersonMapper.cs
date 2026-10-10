@@ -32,16 +32,5 @@ public static class PersonMapper
             nickName: dto.NickName,
             gender: dto.Gender,
             dateOfBirth: dto.DateOfBirth);
-    
-    /// <summary>
-    /// Converts <see cref="RegisterDto"/> to <see cref="CreatePersonDto"/> Entity
-    /// </summary>
-    public static CreatePersonDto ToCreatePersonDto(this RegisterDto dto)
-        => new(
-            FirstName: dto.FirstName,
-            LastName: dto.LastName,
-            NickName: dto.NickName,
-            Gender: dto.Gender,
-            DateOfBirth: dto.DateOfBirth);
 
 }

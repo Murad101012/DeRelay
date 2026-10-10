@@ -6,11 +6,14 @@ using DeRelay.Core.Entities;
 using DeRelay.Core.Enums;
 using DeRelay.Core.Exceptions;
 using DeRelay.Core.Interfaces;
+using DeRelay.Core.Security;
 using DeRelay.Data;
 using DeRelay.Data.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 
@@ -40,13 +43,15 @@ public class RefreshTokenServiceTests
         }
     }
 
-    private static async Task<int> SeedAppUser(DeRelayDbContext ctx, string userName = "rtuser")
+    private static async Task<int> SeedAppUser(DeRelayDbContext ctx, string email = "rtuser@mail.com")
     {
-        var person = new Person("Rt", "User", userName, Gender.Male, new DateTime(2000, 1, 1));
+        var person = new Person("Rt", "User", email.Split('@')[0], Gender.Male, new DateTime(2000, 1, 1));
         ctx.Persons.Add(person);
         await ctx.SaveChangesAsync();
-        var appUser = new AppUser(userName, "HASH", person.Id);
+        var appUser = new AppUser(email, "HASH");
         ctx.AppUsers.Add(appUser);
+        await ctx.SaveChangesAsync();
+        ctx.Entry(appUser).Property(u => u.PersonId).CurrentValue = person.Id;
         await ctx.SaveChangesAsync();
         return appUser.Id;
     }
@@ -54,6 +59,22 @@ public class RefreshTokenServiceTests
     private static SigningCredentials TestCreds() => new(
         new SymmetricSecurityKey(Encoding.UTF8.GetBytes("test-only-secret-at-least-32-bytes!!")),
         SecurityAlgorithms.HmacSha256);
+
+    private static IConfiguration TestConfig() => new ConfigurationBuilder()
+        .AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Confirmation:Key"] = "dGVzdC1vbmx5LWNvbmZpcm1hdGlvbi1rZXk=",
+        }).Build();
+
+    private sealed class StubEmailService : IEmailService
+    {
+        public List<(string Email, string Subject, string Message)> Sent { get; } = new();
+        public Task SendEmailAsync(string toEmail, string subject, string message)
+        {
+            Sent.Add((toEmail, subject, message));
+            return Task.CompletedTask;
+        }
+    }
 
     [Fact]
     public async Task Create_NewSession_StoresHashNotPlaintext()
@@ -223,10 +244,11 @@ public class RefreshTokenServiceTests
         Assert.Equal(2, await scope.Context.RefreshToken.CountAsync());
 
         var appUserService = new AppUserService(scope.Context);
+        var pendingService = new PendingRegistrationService(scope.Context, TestConfig(), new TokenGenerator());
         var authService = new AuthService(scope.Context,
             new PersonService(scope.Context, appUserService),
             new PasswordHasher<AppUser>(), TestCreds(), appUserService,
-            scope.Service);
+            scope.Service, pendingService, new StubEmailService(), NullLogger<AuthService>.Instance);
         await authService.DeleteAccountAsync(appUserId);
 
         // Person → AppUser → RefreshToken cascade: no orphan credential material.

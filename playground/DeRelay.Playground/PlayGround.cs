@@ -21,7 +21,7 @@ ctx.Database.EnsureCreated();
 var person = new Person("Play", "Ground", "playground", Gender.Male, new DateTime(2000, 1, 1));
 ctx.Persons.Add(person);
 await ctx.SaveChangesAsync();
-var appUser = new AppUser("playground", "HASH", person.Id);
+var appUser = new AppUser("playground", "HASH");
 ctx.AppUsers.Add(appUser);
 await ctx.SaveChangesAsync();
 

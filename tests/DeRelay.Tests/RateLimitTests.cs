@@ -19,21 +19,19 @@ public class RateLimitTests
 
     private static object RegisterBody(string u) => new
     {
-        userName = u,
+        email = u + "@mail.com",
         password = "cat12345",
-        firstName = "Aa",
-        lastName = "Aa",
-        nickName = "n" + Tag(),
-        gender = "Male",
-        dateOfBirth = "2000-01-01T00:00:00Z",
     };
 
-    private async Task<string> LoginRefreshToken(HttpClient client, string user)
+    private async Task<string> LoginRefreshToken(DeRelayWebFactory factory, HttpClient client, string user)
     {
         var reg = await client.PostAsync("/api/Auth/register", JsonBody(RegisterBody(user)));
         Assert.Equal(HttpStatusCode.Created, reg.StatusCode);
+        var link = factory.IssuedLinks.Last();
+        var confirm = await client.GetAsync($"/api/Auth/confirm?key={link}");
+        Assert.Equal(HttpStatusCode.OK, confirm.StatusCode);
         var login = await client.PostAsync("/api/Auth/login",
-            JsonBody(new { userName = user, password = "cat12345" }));
+            JsonBody(new { email = user + "@mail.com", password = "cat12345" }));
         Assert.Equal(HttpStatusCode.OK, login.StatusCode);
         using var doc = JsonDocument.Parse(await login.Content.ReadAsStringAsync());
         return doc.RootElement.GetProperty("refreshToken").GetString()!;
@@ -47,12 +45,15 @@ public class RateLimitTests
         var user = "rl" + Tag();
         var reg = await client.PostAsync("/api/Auth/register", JsonBody(RegisterBody(user)));
         Assert.Equal(HttpStatusCode.Created, reg.StatusCode);
+        var link = factory.IssuedLinks.Last();
+        var confirm = await client.GetAsync($"/api/Auth/confirm?key={link}");
+        Assert.Equal(HttpStatusCode.OK, confirm.StatusCode);
 
         HttpStatusCode eighth = 0;
         for (var i = 0; i < 8; i++)
         {
             var login = await client.PostAsync("/api/Auth/login",
-                JsonBody(new { userName = user, password = "cat12345" }));
+                JsonBody(new { email = user + "@mail.com", password = "cat12345" }));
             if (i < 7) Assert.Equal(HttpStatusCode.OK, login.StatusCode);
             else eighth = login.StatusCode;
         }
@@ -68,12 +69,15 @@ public class RateLimitTests
         var user = "rle" + Tag();
         var reg = await client.PostAsync("/api/Auth/register", JsonBody(RegisterBody(user)));
         Assert.Equal(HttpStatusCode.Created, reg.StatusCode);
+        var link = factory.IssuedLinks.Last();
+        var confirm = await client.GetAsync($"/api/Auth/confirm?key={link}");
+        Assert.Equal(HttpStatusCode.OK, confirm.StatusCode);
 
         HttpResponseMessage? rejected = null;
         for (var i = 0; i < 8 && rejected is null; i++)
         {
             var login = await client.PostAsync("/api/Auth/login",
-                JsonBody(new { userName = user, password = "cat12345" }));
+                JsonBody(new { email = user + "@mail.com", password = "cat12345" }));
             if (login.StatusCode == HttpStatusCode.TooManyRequests)
                 rejected = login;
         }
@@ -91,7 +95,7 @@ public class RateLimitTests
     {
         using var factory = new DeRelayWebFactory();
         var client = factory.CreateClient();
-        var token = await LoginRefreshToken(client, "rr" + Tag());
+        var token = await LoginRefreshToken(factory, client, "rr" + Tag());
 
         HttpStatusCode fifth = 0;
         for (var i = 0; i < 5; i++)
@@ -116,7 +120,7 @@ public class RateLimitTests
     {
         using var factory = new DeRelayWebFactory();
         var client = factory.CreateClient();
-        var token = await LoginRefreshToken(client, "rw" + Tag());
+        var token = await LoginRefreshToken(factory, client, "rw" + Tag());
 
         for (var i = 0; i < 4; i++)
         {

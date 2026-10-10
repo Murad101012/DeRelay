@@ -1,11 +1,14 @@
 using DeRelay.Api.Extensions;
 using DeRelay.Core.DTOs.AppUser;
+using DeRelay.Core.DTOs.Person;
 using DeRelay.Core.DTOs.RefreshToken;
 using DeRelay.Core.DTOs.TokenPair;
+using DeRelay.Core.Exceptions;
 using DeRelay.Core.Interfaces;
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.RateLimiting;
 using ValidationException = DeRelay.Core.Exceptions.ValidationException;
 
@@ -19,20 +22,61 @@ namespace DeRelay.Api.Controllers;
 public class AuthController(
     IAuthService iAuthService,
     IValidator<RegisterDto> registerValidator,
+    IValidator<CreatePersonDto> createPersonValidator,
     IValidator<LoginDto> loginValidator,
     IValidator<UserRefreshTokenDto> userRefreshTokenValidator): ControllerBase
 {
     [HttpPost("register")]
-    [EnableRateLimiting("register")]
-    public async Task<ActionResult<int>> Register([FromBody] RegisterDto dto)
+    [EnableRateLimiting("create-full-account")]
+    public async Task<IActionResult> RegisterAsPending([FromBody] RegisterDto dto)
     {
         var validate = await registerValidator.ValidateAsync(dto);
         if (!validate.IsValid)
             throw new ValidationException(validate.Errors.First().ErrorMessage);
 
-        return StatusCode(201, await iAuthService.RegisterAsync(dto));
+        await iAuthService.RegisterAsPending(dto);
+        
+        return StatusCode(201);
     }
 
+    [HttpGet("confirm")]
+    [EnableRateLimiting("create-full-account")]
+    public async Task<IActionResult> Confirm([FromQuery] string key)
+    {
+        try
+        {
+            await iAuthService.AcceptConfirmationLink(key);
+            return Content("Link confirmed successfully, you can log in.", "text/plain");
+        }
+        catch (NotFoundException ex)
+        {
+            Response.StatusCode = 404;
+            return Content(ex.Message, "text/plain");
+        }
+        catch (UnauthorizedException ex)
+        {
+            Response.StatusCode = 401;
+            return Content(ex.Message, "text/plain");
+        }
+        catch (AlreadyExistsException ex)
+        {
+            Response.StatusCode = 409;
+            return Content(ex.Message, "text/plain");
+        }
+    }
+    
+    [Authorize]
+    [HttpPost("complete-profile")]
+    [EnableRateLimiting("create-full-account")]
+    public async Task<ActionResult<int>> CompleteProfile([FromBody] CreatePersonDto dto)
+    {
+        var validate = await createPersonValidator.ValidateAsync(dto);
+        if (!validate.IsValid)
+            throw new ValidationException(validate.Errors.First().ErrorMessage);
+
+        return StatusCode(201, await iAuthService.CompleteProfile(dto, User.GetAppUserId()));
+    }
+    
     [HttpPost("login")]
     [EnableRateLimiting("login-tight")]
     public async Task<ActionResult<JwtAndRefreshTokensDto>> Login([FromBody] LoginDto dto)

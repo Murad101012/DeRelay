@@ -21,13 +21,8 @@ public class RefreshEndpointSecurityTests
 
     private static object RegisterBody(string u) => new
     {
-        userName = u,
+        email = u + "@mail.com",
         password = "cat12345",
-        firstName = "Aa",
-        lastName = "Aa",
-        nickName = "n" + Tag(),
-        gender = "Male",
-        dateOfBirth = "2000-01-01T00:00:00Z",
     };
 
     private static string Field(JsonElement root, params string[] names)
@@ -40,12 +35,15 @@ public class RefreshEndpointSecurityTests
         throw new InvalidOperationException($"None of [{string.Join(",", names)}] present.");
     }
 
-    private async Task<(string Jwt, string Refresh)> RegisterAndLogin(HttpClient client, string user)
+    private async Task<(string Jwt, string Refresh)> RegisterAndLogin(DeRelayWebFactory factory, HttpClient client, string user)
     {
         var reg = await client.PostAsync("/api/Auth/register", JsonBody(RegisterBody(user)));
         Assert.Equal(HttpStatusCode.Created, reg.StatusCode);
+        var link = factory.IssuedLinks.Last();
+        var confirm = await client.GetAsync($"/api/Auth/confirm?key={link}");
+        Assert.Equal(HttpStatusCode.OK, confirm.StatusCode);
         var login = await client.PostAsync("/api/Auth/login",
-            JsonBody(new { userName = user, password = "cat12345" }));
+            JsonBody(new { email = user + "@mail.com", password = "cat12345" }));
         Assert.Equal(HttpStatusCode.OK, login.StatusCode);
         using var doc = JsonDocument.Parse(await login.Content.ReadAsStringAsync());
         var pair = (
@@ -86,7 +84,7 @@ public class RefreshEndpointSecurityTests
     {
         using var factory = new DeRelayWebFactory();
         var client = factory.CreateClient();
-        var (_, oldRefresh) = await RegisterAndLogin(client, "rot" + Tag());
+        var (_, oldRefresh) = await RegisterAndLogin(factory, client, "rot" + Tag());
 
         var (jwt2, refresh2) = await Refresh(client, oldRefresh);
 
@@ -102,7 +100,7 @@ public class RefreshEndpointSecurityTests
     {
         using var factory = new DeRelayWebFactory();
         var client = factory.CreateClient();
-        var (_, oldRefresh) = await RegisterAndLogin(client, "rep" + Tag());
+        var (_, oldRefresh) = await RegisterAndLogin(factory, client, "rep" + Tag());
         var (_, liveRefresh) = await Refresh(client, oldRefresh);
 
         // Attacker (or lagging client) replays the consumed token.
@@ -142,8 +140,8 @@ public class RefreshEndpointSecurityTests
         using var factory = new DeRelayWebFactory();
         var clientA = factory.CreateClient();
         var clientB = factory.CreateClient();
-        var (_, refreshA) = await RegisterAndLogin(clientA, "vic" + Tag());
-        await RegisterAndLogin(clientB, "atk" + Tag());
+        var (_, refreshA) = await RegisterAndLogin(factory, clientA, "vic" + Tag());
+        await RegisterAndLogin(factory, clientB, "atk" + Tag());
 
         var victimSession = (await Sessions(clientA)).Single();
         var kill = await clientB.DeleteAsync($"/api/RefreshToken/session/{victimSession}");
@@ -159,7 +157,7 @@ public class RefreshEndpointSecurityTests
     {
         using var factory = new DeRelayWebFactory();
         var client = factory.CreateClient();
-        var (_, refresh) = await RegisterAndLogin(client, "out" + Tag());
+        var (_, refresh) = await RegisterAndLogin(factory, client, "out" + Tag());
 
         var session = (await Sessions(client)).Single();
         Assert.Equal(HttpStatusCode.NoContent,

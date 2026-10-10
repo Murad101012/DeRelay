@@ -3,6 +3,7 @@ using System;
 using DeRelay.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace DeRelay.Data.Migrations
 {
     [DbContext(typeof(DeRelayDbContext))]
-    partial class DeRelayDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261007134545_AppUserTableUserNameColumnToEmail")]
+    partial class AppUserTableUserNameColumnToEmail
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -90,34 +93,6 @@ namespace DeRelay.Data.Migrations
                     b.HasIndex("User2Id");
 
                     b.ToTable("Friendships");
-                });
-
-            modelBuilder.Entity("DeRelay.Core.Entities.PendingRegistration", b =>
-                {
-                    b.Property<string>("Hash")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("ConfirmationExpiry")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Email")
-                        .IsRequired()
-                        .HasMaxLength(254)
-                        .HasColumnType("character varying(254)");
-
-                    b.Property<string>("HashedPassword")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("LinkExpiry")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Hash");
-
-                    b.HasIndex("Email")
-                        .IsUnique();
-
-                    b.ToTable("PendingRegistrations");
                 });
 
             modelBuilder.Entity("DeRelay.Core.Entities.Person", b =>

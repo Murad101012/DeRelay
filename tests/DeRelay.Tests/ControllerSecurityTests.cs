@@ -27,21 +27,19 @@ public class ControllerSecurityTests
 
     private static object RegisterBody(string u) => new
     {
-        userName = u,
+        email = u + "@mail.com",
         password = "cat12345",
-        firstName = "Aa",
-        lastName = "Aa",
-        nickName = "n" + Tag(),
-        gender = "Male",
-        dateOfBirth = "2000-01-01T00:00:00Z",
     };
 
-    private async Task<string> RegisterAndLogin(HttpClient client, string user)
+    private async Task<string> RegisterAndLogin(DeRelayWebFactory factory, HttpClient client, string user)
     {
         var reg = await client.PostAsync("/api/Auth/register", JsonBody(RegisterBody(user)));
         Assert.Equal(HttpStatusCode.Created, reg.StatusCode);
+        var link = factory.IssuedLinks.Last();
+        var confirm = await client.GetAsync($"/api/Auth/confirm?key={link}");
+        Assert.Equal(HttpStatusCode.OK, confirm.StatusCode);
         var login = await client.PostAsync("/api/Auth/login",
-            JsonBody(new { userName = user, password = "cat12345" }));
+            JsonBody(new { email = user + "@mail.com", password = "cat12345" }));
         Assert.Equal(HttpStatusCode.OK, login.StatusCode);
         using var doc = JsonDocument.Parse(await login.Content.ReadAsStringAsync());
         foreach (var name in new[] { "jwtToken", "JwtToken", "accessToken", "AccessToken", "token", "Token" })
@@ -50,6 +48,19 @@ public class ControllerSecurityTests
                 !string.IsNullOrWhiteSpace(token.GetString()))
                 return token.GetString()!;
         throw new InvalidOperationException("Login response did not contain a JWT access token.");
+    }
+
+    private static async Task CompleteProfile(HttpClient client, string tag)
+    {
+        var complete = await client.PostAsync("/api/Auth/complete-profile", JsonBody(new
+        {
+            firstName = "Aa",
+            lastName = "Aa",
+            nickName = "n" + tag,
+            gender = "Male",
+            dateOfBirth = "2000-01-01T00:00:00Z",
+        }));
+        Assert.Equal(HttpStatusCode.Created, complete.StatusCode);
     }
 
     private static void UseBearer(HttpClient client, string token) =>
@@ -69,8 +80,9 @@ public class ControllerSecurityTests
     {
         using var factory = new DeRelayWebFactory();
         var client = factory.CreateClient();
-        var token = await RegisterAndLogin(client, "sig" + Tag());
+        var token = await RegisterAndLogin(factory, client, "sig" + Tag());
         UseBearer(client, token);
+        await CompleteProfile(client, Tag());
 
         Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/api/Friendship")).StatusCode);
     }
@@ -97,7 +109,7 @@ public class ControllerSecurityTests
     {
         using var factory = new DeRelayWebFactory();
         var client = factory.CreateClient();
-        var token = await RegisterAndLogin(client, "tmp" + Tag());
+        var token = await RegisterAndLogin(factory, client, "tmp" + Tag());
         var parts = token.Split('.');
         var sig = parts[2];
         var flipped = sig[..^1] + (sig[^1] == 'X' ? 'Y' : 'X');
@@ -111,7 +123,7 @@ public class ControllerSecurityTests
     {
         using var factory = new DeRelayWebFactory();
         var client = factory.CreateClient();
-        var token = await RegisterAndLogin(client, "exp" + Tag());
+        var token = await RegisterAndLogin(factory, client, "exp" + Tag());
         var sub = new JwtSecurityTokenHandler().ReadJwtToken(token)
             .Claims.First(c => c.Type == "sub").Value;
         UseBearer(client, Mint(sub, DateTime.UtcNow.AddMinutes(-5)));
@@ -125,12 +137,48 @@ public class ControllerSecurityTests
         // The "very short time" case: 10s token must work inside its window.
         using var factory = new DeRelayWebFactory();
         var client = factory.CreateClient();
-        var token = await RegisterAndLogin(client, "s10" + Tag());
+        var token = await RegisterAndLogin(factory, client, "s10" + Tag());
         var sub = new JwtSecurityTokenHandler().ReadJwtToken(token)
             .Claims.First(c => c.Type == "sub").Value;
+        UseBearer(client, token);
+        await CompleteProfile(client, Tag());
         UseBearer(client, Mint(sub, DateTime.UtcNow.AddSeconds(10)));
 
         Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/api/Friendship")).StatusCode);
+    }
+
+    [Fact]
+    public async Task OnboardingJourney_NoProfileBlockedProfileUnblocks()
+    {
+        using var factory = new DeRelayWebFactory();
+        var clientA = factory.CreateClient();
+        var clientB = factory.CreateClient();
+        var tokenA = await RegisterAndLogin(factory, clientA, "jrA" + Tag());
+        var tokenB = await RegisterAndLogin(factory, clientB, "jrB" + Tag());
+        UseBearer(clientA, tokenA);
+        UseBearer(clientB, tokenB);
+        await CompleteProfile(clientB, Tag());
+
+        // Receiver person id = B's fresh profile.
+        int receiverPersonId;
+        using (var scope = factory.Services.CreateScope())
+        {
+            var ctx = scope.ServiceProvider.GetRequiredService<DeRelayDbContext>();
+            receiverPersonId = await ctx.Persons
+                .OrderByDescending(p => p.Id).Select(p => p.Id).FirstAsync();
+        }
+
+        // No profile yet: gated.
+        var blocked = await clientA.PostAsync("/api/FriendRequest",
+            JsonBody(new { receiverId = receiverPersonId }));
+        Assert.Equal(HttpStatusCode.NotFound, blocked.StatusCode);
+
+        // Complete profile: same request succeeds.
+        await CompleteProfile(clientA, Tag());
+        var send = await clientA.PostAsync("/api/FriendRequest",
+            JsonBody(new { receiverId = receiverPersonId }));
+        Assert.Equal(HttpStatusCode.Created, send.StatusCode);
+        _ = tokenB;
     }
 
     [Fact]
@@ -139,8 +187,12 @@ public class ControllerSecurityTests
         using var factory = new DeRelayWebFactory();
         var clientA = factory.CreateClient();
         var clientB = factory.CreateClient();
-        var tokenA = await RegisterAndLogin(clientA, "frA" + Tag());
-        await RegisterAndLogin(clientB, "frB" + Tag());
+        var tokenA = await RegisterAndLogin(factory, clientA, "frA" + Tag());
+        var tokenB = await RegisterAndLogin(factory, clientB, "frB" + Tag());
+        UseBearer(clientA, tokenA);
+        await CompleteProfile(clientA, Tag());
+        UseBearer(clientB, tokenB);
+        await CompleteProfile(clientB, Tag());
         UseBearer(clientA, tokenA);
 
         // Receiver person id read straight from the shared test DB (no id-oracle API needed).
@@ -157,13 +209,44 @@ public class ControllerSecurityTests
     }
 
     [Fact]
-    public async Task Register_DuplicateUserName_409()
+    public async Task HasProfile_FalseBeforeTrueAfterCompletion()
+    {
+        using var factory = new DeRelayWebFactory();
+        var client = factory.CreateClient();
+        var token = await RegisterAndLogin(factory, client, "hp" + Tag());
+        UseBearer(client, token);
+
+        var before = await client.GetAsync("/api/AppUser/profile-creation-check");
+        Assert.Equal(HttpStatusCode.OK, before.StatusCode);
+        Assert.Equal("false", await before.Content.ReadAsStringAsync());
+
+        await CompleteProfile(client, Tag());
+
+        var after = await client.GetAsync("/api/AppUser/profile-creation-check");
+        Assert.Equal(HttpStatusCode.OK, after.StatusCode);
+        Assert.Equal("true", await after.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
+    public async Task HasProfile_Naked_401()
+    {
+        using var factory = new DeRelayWebFactory();
+        var client = factory.CreateClient();
+        Assert.Equal(HttpStatusCode.Unauthorized,
+            (await client.GetAsync("/api/AppUser/profile-creation-check")).StatusCode);
+    }
+
+    [Fact]
+    public async Task Register_DuplicateEmail_409()
     {
         using var factory = new DeRelayWebFactory();
         var client = factory.CreateClient();
         var user = "dup" + Tag();
         Assert.Equal(HttpStatusCode.Created,
             (await client.PostAsync("/api/Auth/register", JsonBody(RegisterBody(user)))).StatusCode);
+        // Confirm the first account: a second register for a TAKEN email is 409.
+        Assert.Equal(HttpStatusCode.OK,
+            (await client.GetAsync($"/api/Auth/confirm?key={factory.IssuedLinks.Last()}")).StatusCode);
         Assert.Equal(HttpStatusCode.Conflict,
             (await client.PostAsync("/api/Auth/register", JsonBody(RegisterBody(user)))).StatusCode);
     }

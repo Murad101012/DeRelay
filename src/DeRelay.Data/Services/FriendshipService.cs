@@ -18,7 +18,7 @@ public class FriendshipService(
     public async Task AddFriendAsync(int appUserId, int personId)
     {
         var appUser = await iAppUserService.ReturnAppUserByIdAsync(appUserId);
-        int friendId = appUser.PersonId;
+        int friendId = appUser.ValidatePersonIdAndReturn();
         
         //Check sender/receiver is same
         if(CheckSenderReceiverIdIsSame(friendId, personId))
@@ -44,14 +44,14 @@ public class FriendshipService(
     {
         var appUser = await iAppUserService.ReturnAppUserByIdAsync(appUserId);
 
-        if(CheckSenderReceiverIdIsSame(appUser.PersonId, dto.FriendId))
+        if(CheckSenderReceiverIdIsSame(appUser.ValidatePersonIdAndReturn(), dto.FriendId))
             throw new ValidationException("Same person cannot be friend of itself");
         
-        await CheckPersonIdIsValid(appUser.PersonId);
+        await CheckPersonIdIsValid(appUser.ValidatePersonIdAndReturn());
         await CheckPersonIdIsValid(dto.FriendId);
         
-        int person1IdMin = Math.Min(appUser.PersonId, dto.FriendId);
-        int person2IdMax = Math.Max(appUser.PersonId, dto.FriendId);
+        int person1IdMin = Math.Min(appUser.ValidatePersonIdAndReturn(), dto.FriendId);
+        int person2IdMax = Math.Max(appUser.ValidatePersonIdAndReturn(), dto.FriendId);
         
         //Check if already in Friendship table and assign to variable
         var friendShip = await CheckIfAlreadyInFriendshipTable(person1IdMin, person2IdMax) ?? 
@@ -64,7 +64,7 @@ public class FriendshipService(
     public async Task<ReturnFriendsDto> GetAllFriendsOfUserByIdAsync(int appUserId)
     {
         var appUser = await iAppUserService.ReturnAppUserByIdAsync(appUserId);
-        int personId = appUser.PersonId;
+        int personId = appUser.ValidatePersonIdAndReturn();
         await CheckPersonIdIsValid(personId);
         return new ReturnFriendsDto(await deRelayDbContext.Friendships
             .AsNoTracking()

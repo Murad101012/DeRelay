@@ -38,13 +38,15 @@ public class PersonServiceTests
     }
 
     private static async Task<(int appUserId, int personId)> SeedUser(
-        DeRelayDbContext ctx, string userName = "aysel97", string nickName = "aysel")
+        DeRelayDbContext ctx, string email = "aysel97@mail.com", string nickName = "aysel")
     {
         var personService = new PersonService(ctx, new AppUserService(ctx));
         var personId = await personService.CreatePersonAsync(
             new CreatePersonDto("Aysel", "Mammadova", nickName, Gender.Female, new DateTime(2000, 1, 1)));
-        var appUser = new AppUser(userName, "HASH", personId);
+        var appUser = new AppUser(email, "HASH");
         ctx.AppUsers.Add(appUser);
+        await ctx.SaveChangesAsync();
+        ctx.Entry(appUser).Property(u => u.PersonId).CurrentValue = personId;
         await ctx.SaveChangesAsync();
         return (appUser.Id, personId);
     }
