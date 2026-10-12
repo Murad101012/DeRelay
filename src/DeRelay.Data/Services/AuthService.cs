@@ -1,6 +1,7 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using DeRelay.Core.DTOs.AppUser;
+using DeRelay.Core.DTOs.PasswordReset;
 using DeRelay.Core.DTOs.Person;
 using DeRelay.Core.DTOs.RefreshToken;
 using DeRelay.Core.DTOs.TokenPair;
@@ -23,6 +24,7 @@ public class AuthService(DeRelayDbContext deRelayDbContext
     ,IRefreshTokenService iRefreshTokenService
     ,IPendingRegistrationService iPendingRegistrationService
     ,IEmailService iEmailService
+    ,IPasswordResetService iPasswordResetService
     ,ILogger<AuthService> iLogger): IAuthService
 {
     /// <summary>
@@ -129,7 +131,32 @@ public class AuthService(DeRelayDbContext deRelayDbContext
         return new JwtAndRefreshTokensDto
             (JwtToken: GenerateJwtToken(appUser), RefreshToken: returnNewRefreshTokenDto.RefreshToken);
     }
-    
+
+    public async Task SendPasswordResetLink(PasswordResetEmailDto passwordResetEmail)
+    {
+        if(!await iAppUserService.CheckIfEmailAvailableInAppUser(passwordResetEmail.email))
+            throw new ValidationException("Email not available in app user");
+        
+        await using var transaction = await deRelayDbContext.Database.BeginTransactionAsync();
+        
+        try
+        {
+            var link = await iPasswordResetService.Create(passwordResetEmail.email);
+            var message = $"Password resetting request came for your account\n\n" +
+                          $"Reset your password with this link in 1 hour:\n\n" +
+                          $"https://derelay.sunnygameai.site/api/PasswordReset/verify-password-reset-link?key={link}\n\n" +
+                          $"If you didn't asked for this request, you can ignore this email.";
+            await iEmailService.SendEmailAsync(passwordResetEmail.email, "Reset the password of your Dancing Line account", message);
+            await transaction.CommitAsync();
+        }
+        catch (Exception e)
+        {
+            iLogger.LogError(e, "Error sending email");
+            await transaction.RollbackAsync();
+            throw;
+        }
+    }
+
     public async Task DeleteAccountAsync(int appUserId)
     {
         /*In here we only remove from Person and not also add AppUser, because
@@ -167,5 +194,17 @@ public class AuthService(DeRelayDbContext deRelayDbContext
             signingCredentials: signingCredentials);
         
         return new JwtSecurityTokenHandler().WriteToken(token);
+    }
+
+    public async Task ApplyNewPassword(NewPasswordDto newPassword)
+    {
+        var passwordReset = await iPasswordResetService.ReturnByLinkAsync(newPassword.Token);
+        var passwordHash = passwordHasher.HashPassword(null!, newPassword.Password);
+        await iAppUserService.ChangePassword(passwordReset.email, passwordHash);
+        var appUser = await iAppUserService.ReturnAppUserByEmail(passwordReset.email);
+        if(appUser == null)
+            throw new NotFoundException($"Account with {passwordReset.email} not exists.");
+        await iRefreshTokenService.DeleteAllRefreshTokensOfAppUserByAppUserId(appUser.Id);
+        await iPasswordResetService.Delete(passwordReset);
     }
 }

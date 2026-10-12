@@ -1,4 +1,5 @@
 using DeRelay.Core.DTOs.AppUser;
+using DeRelay.Core.DTOs.PasswordReset;
 using DeRelay.Core.DTOs.Person;
 using DeRelay.Core.DTOs.RefreshToken;
 using DeRelay.Core.DTOs.TokenPair;
@@ -17,8 +18,9 @@ public interface IAuthService
     public Task AcceptConfirmationLink(string link);
     public Task<int> CompleteProfile(CreatePersonDto dto, int appUserId);
     public Task<JwtAndRefreshTokensDto> LoginAsync(LoginDto dto);
+    public Task SendPasswordResetLink(PasswordResetEmailDto passwordResetEmail);
+    public Task ApplyNewPassword(NewPasswordDto newPassword);
     public Task DeleteAccountAsync(int appUserId);
-
     public Task<JwtAndRefreshTokensDto> RefreshJwtAndRefreshTokensAsync
         (UserRefreshTokenDto dto);
 
