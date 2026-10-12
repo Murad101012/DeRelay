@@ -55,4 +55,14 @@ public class AppUserService(DeRelayDbContext deRelayDbContext): IAppUserService
         if (appUser == null) throw new NotFoundException("Account couldn't found");
         return appUser.PersonId != null;
     }
+
+    public async Task ChangePassword(string email, string hashedPassword)
+    {
+        var appUser = await deRelayDbContext.AppUsers.FirstOrDefaultAsync(au => au.Email == email)
+                        ?? throw new NotFoundException($"Account with {email} didn't found");
+
+        appUser.SetPasswordHash(hashedPassword);
+
+        await deRelayDbContext.SaveChangesAsync();
+    }
 }

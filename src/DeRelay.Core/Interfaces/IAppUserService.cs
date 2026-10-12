@@ -14,4 +14,5 @@ public interface IAppUserService
     public Task<AppUser?> ReturnAppUserByEmail(string email);
     public string NormalizeEmail(string email);
     public Task<bool> CheckHasProfile(int appUserId);
+    public Task ChangePassword(string email, string password);
 }

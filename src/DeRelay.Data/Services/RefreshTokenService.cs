@@ -143,4 +143,9 @@ public class RefreshTokenService(DeRelayDbContext deRelayDbContext): IRefreshTok
     {
         return await deRelayDbContext.RefreshToken.FirstOrDefaultAsync(token => token.SessionId == sessionId && !token.IsRevoked);
     }
+
+    public async Task DeleteAllRefreshTokensOfAppUserByAppUserId(int appUserId)
+    {
+        await deRelayDbContext.RefreshToken.Where(rt => rt.AppUserId == appUserId).ExecuteDeleteAsync();
+    }
 }

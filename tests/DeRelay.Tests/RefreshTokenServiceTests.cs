@@ -64,6 +64,7 @@ public class RefreshTokenServiceTests
         .AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["Confirmation:Key"] = "dGVzdC1vbmx5LWNvbmZpcm1hdGlvbi1rZXk=",
+            ["PasswordReset:Key"] = "dGVzdC1yZXNldC1rZXktZm9yLXRlc3Rz",
         }).Build();
 
     private sealed class StubEmailService : IEmailService
@@ -248,7 +249,7 @@ public class RefreshTokenServiceTests
         var authService = new AuthService(scope.Context,
             new PersonService(scope.Context, appUserService),
             new PasswordHasher<AppUser>(), TestCreds(), appUserService,
-            scope.Service, pendingService, new StubEmailService(), NullLogger<AuthService>.Instance);
+            scope.Service, pendingService, new StubEmailService(), new PasswordResetService(scope.Context, TestConfig(), new TokenGenerator()), NullLogger<AuthService>.Instance);
         await authService.DeleteAccountAsync(appUserId);
 
         // Person → AppUser → RefreshToken cascade: no orphan credential material.

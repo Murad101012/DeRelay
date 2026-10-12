@@ -15,4 +15,5 @@ public interface IRefreshTokenService
     /// </summary>
     /// <returns>How many rows deleted</returns>
     Task<int> DeleteOldRefreshTokensInSessionsAsync(CancellationToken cancellationToken);
+    Task DeleteAllRefreshTokensOfAppUserByAppUserId(int appUserId);
 }
