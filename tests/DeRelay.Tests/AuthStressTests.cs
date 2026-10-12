@@ -77,13 +77,14 @@ public class AuthStressTests
             ? new TokenGenerator()
             : new StubRng(fixedLink);
         var pendingService = new PendingRegistrationService(context, TestConfig(), rng);
-        return new AuthService(context, new PersonService(context, new AppUserService(context)), new PasswordHasher<AppUser>(), testCreds, new AppUserService(context), new RefreshTokenService(context), pendingService, new StubEmailService(), NullLogger<AuthService>.Instance);
+        return new AuthService(context, new PersonService(context, new AppUserService(context)), new PasswordHasher<AppUser>(), testCreds, new AppUserService(context), new RefreshTokenService(context), pendingService, new StubEmailService(), new PasswordResetService(context, TestConfig(), new TokenGenerator()), NullLogger<AuthService>.Instance);
     }
 
     private static IConfiguration TestConfig() => new ConfigurationBuilder()
         .AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["Confirmation:Key"] = "dGVzdC1vbmx5LWNvbmZpcm1hdGlvbi1rZXk=",
+            ["PasswordReset:Key"] = "dGVzdC1yZXNldC1rZXktZm9yLXRlc3Rz",
         }).Build();
 
     private static (int persons, int users, int pendings) Counts(string path)

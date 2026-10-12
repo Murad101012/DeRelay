@@ -4,6 +4,7 @@
 // resend-after-expiry, unconfirmed-login parity.
 using System.Data.Common;
 using DeRelay.Core.DTOs.AppUser;
+using DeRelay.Core.DTOs.PasswordReset;
 using DeRelay.Core.Entities;
 using DeRelay.Core.Exceptions;
 using DeRelay.Core.Interfaces;
@@ -44,6 +45,7 @@ public class PendingRegistrationTests
         .AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["Confirmation:Key"] = "dGVzdC1vbmx5LWNvbmZpcm1hdGlvbi1rZXk=",
+            ["PasswordReset:Key"] = "dGVzdC1yZXNldC1rZXktZm9yLXRlc3Rz",
         }).Build();
 
     private sealed class Scope : IAsyncDisposable
@@ -68,7 +70,7 @@ public class PendingRegistrationTests
                 SecurityAlgorithms.HmacSha256);
             var pendingService = new PendingRegistrationService(Context, TestConfig(), new StubRng());
             Service = new AuthService(Context, personService,
-                new PasswordHasher<AppUser>(), creds, appUserService, new RefreshTokenService(Context), pendingService, EmailStub, NullLogger<AuthService>.Instance);
+                new PasswordHasher<AppUser>(), creds, appUserService, new RefreshTokenService(Context), pendingService, EmailStub, new PasswordResetService(Context, TestConfig(), new TokenGenerator()), NullLogger<AuthService>.Instance);
         }
         public async ValueTask DisposeAsync()
         {
@@ -258,5 +260,27 @@ public class PendingRegistrationTests
         Assert.False(string.IsNullOrWhiteSpace(link));
         await scope.Service.AcceptConfirmationLink(link);
         Assert.Equal(1, await scope.Context.AppUsers.CountAsync());
+    }
+
+    [Fact]
+    public async Task ResetRequest_MailsResetLink()
+    {
+        await using var scope = new Scope();
+        await scope.Service.RegisterAsPending(new RegisterDto("victim@mail.com", "cat12345", "cat12345"));
+        var mailed = scope.EmailStub.Sent.Single(s => s.Email == "victim@mail.com").Message;
+        await scope.Service.AcceptConfirmationLink(
+            mailed.Substring(mailed.IndexOf("key=") + 4)
+                .Split((char[])[' ', '\n', '\r', '\t'], StringSplitOptions.RemoveEmptyEntries)[0]);
+
+        // The reset request must reach the mailer: address + live link, or it never happened.
+        await scope.Service.SendPasswordResetLink(new PasswordResetEmailDto("victim@mail.com"));
+        var sent = scope.EmailStub.Sent.Last(s => s.Email == "victim@mail.com");
+        const string marker = "key=";
+        Assert.Contains(marker, sent.Message);
+        var link = sent.Message.Substring(sent.Message.IndexOf(marker) + marker.Length)
+            .Split((char[])[' ', '\n', '\r', '\t'], StringSplitOptions.RemoveEmptyEntries)[0];
+        await scope.Service.ApplyNewPassword(new NewPasswordDto(link, "newpass123", "newpass123"));
+        var pair = await scope.Service.LoginAsync(new LoginDto("victim@mail.com", "newpass123"));
+        Assert.False(string.IsNullOrWhiteSpace(pair.JwtToken));
     }
 }

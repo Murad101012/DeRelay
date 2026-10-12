@@ -38,6 +38,7 @@ public class AuthLoginTests
         .AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["Confirmation:Key"] = "dGVzdC1vbmx5LWNvbmZpcm1hdGlvbi1rZXk=",
+            ["PasswordReset:Key"] = "dGVzdC1yZXNldC1rZXktZm9yLXRlc3Rz",
         }).Build();
 
     private sealed class StubEmailService : IEmailService
@@ -73,7 +74,7 @@ public class AuthLoginTests
                 SecurityAlgorithms.HmacSha256);
             var pendingService = new PendingRegistrationService(Context, TestConfig(), new StubRng());
             Service = new AuthService(Context, personService,
-                new PasswordHasher<AppUser>(), creds, appUserService, new RefreshTokenService(Context), pendingService, new StubEmailService(), NullLogger<AuthService>.Instance);
+                new PasswordHasher<AppUser>(), creds, appUserService, new RefreshTokenService(Context), pendingService, new StubEmailService(), new PasswordResetService(Context, TestConfig(), new TokenGenerator()), NullLogger<AuthService>.Instance);
         }
         public string DbPath => _path;
         public async ValueTask DisposeAsync()
