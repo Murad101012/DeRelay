@@ -12,6 +12,7 @@ public class DataCleanupService(IServiceScopeFactory scopes, ILogger<DataCleanup
         {
             await RefreshTokenCleanup(stoppingToken);
             await PendingRegistrationCleanup(stoppingToken);
+            await PasswordResetCleanup(stoppingToken);
         }
         
     }
@@ -53,6 +54,26 @@ public class DataCleanupService(IServiceScopeFactory scopes, ILogger<DataCleanup
         {
             await transaction.RollbackAsync(stoppingToken);
             logger.LogError(ex, "Pending registrations cleanup sweep failed; will retry next tick.");
+        }
+    }
+
+    private async Task PasswordResetCleanup(CancellationToken stoppingToken)
+    {
+        using var scope = scopes.CreateScope();
+        var sweeper = scope.ServiceProvider.GetRequiredService<IPasswordResetService>();
+        var ctx = scope.ServiceProvider.GetRequiredService<DeRelayDbContext>();
+        var transaction = await ctx.Database.BeginTransactionAsync(stoppingToken);
+        try
+        {
+            var deleted = await sweeper.RemoveAllExpiredPasswordResetLinks(stoppingToken);
+            await transaction.CommitAsync(stoppingToken);
+            if (deleted > 0)
+                logger.LogInformation("Password reset cleanup swept {Deleted} expired link rows.", deleted);
+        }
+        catch (Exception ex)
+        {
+            await transaction.RollbackAsync(stoppingToken);
+            logger.LogError(ex, "Password reset cleanup sweep failed; will retry next tick.");
         }
     }
 }

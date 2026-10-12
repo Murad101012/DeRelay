@@ -1,5 +1,6 @@
 using DeRelay.Api.Extensions;
 using DeRelay.Core.DTOs.AppUser;
+using DeRelay.Core.DTOs.PasswordReset;
 using DeRelay.Core.DTOs.Person;
 using DeRelay.Core.DTOs.RefreshToken;
 using DeRelay.Core.DTOs.TokenPair;
@@ -21,10 +22,12 @@ namespace DeRelay.Api.Controllers;
 [Route("api/[controller]")]
 public class AuthController(
     IAuthService iAuthService,
+    ILogger<AuthController> iLogger,
     IValidator<RegisterDto> registerValidator,
     IValidator<CreatePersonDto> createPersonValidator,
     IValidator<LoginDto> loginValidator,
-    IValidator<UserRefreshTokenDto> userRefreshTokenValidator): ControllerBase
+    IValidator<UserRefreshTokenDto> userRefreshTokenValidator,
+    IValidator<NewPasswordDto> newPasswordValidator): ControllerBase
 {
     [HttpPost("register")]
     [EnableRateLimiting("create-full-account")]
@@ -86,6 +89,38 @@ public class AuthController(
             throw new ValidationException(validate.Errors.First().ErrorMessage);
         
         return StatusCode(200, await iAuthService.LoginAsync(dto));
+    }
+
+    [HttpPost("send-password-reset-link")]
+    [EnableRateLimiting("password-reset")]
+    public async Task<IActionResult> SendPasswordResetLink([FromBody] PasswordResetEmailDto passwordResetEmail)
+    {
+        /*NOTE: SendPasswordResetLink() wrapped in try/catch block, because the throws error messages
+         can leak knowladge in Database as (Giving false e-mail -> Attacker know there don't 
+         an user with this email). Instead of silently returning where the problem happens, 
+         it's wrapped in try/catch. With that user get a netural message, while the actual problem
+         logged in the server. */
+        try
+        {
+            await iAuthService.SendPasswordResetLink(passwordResetEmail);
+        }
+        catch (Exception e)
+        {
+            iLogger.LogError(e, e.Message);
+        }
+        return Ok("If an account exists for this email, a reset link is on its way. " +
+                  "Check your inbox and spam box.");
+    }
+
+    [HttpPost("apply-new-password")]
+    [EnableRateLimiting("password-reset")]
+    public async Task<IActionResult> ChangePassword([FromForm] NewPasswordDto newPassword)
+    {
+        var validate = await newPasswordValidator.ValidateAsync(newPassword);
+        if (!validate.IsValid)
+            throw new ValidationException(validate.Errors.First().ErrorMessage);
+        await iAuthService.ApplyNewPassword(newPassword);
+        return Ok();
     }
 
     [Authorize]

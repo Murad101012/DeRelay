@@ -19,6 +19,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using DeRelay.Core.Validators.PasswordReset;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -35,6 +36,7 @@ builder.Services.AddScoped<IRefreshTokenService, RefreshTokenService>();
 builder.Services.AddScoped<IPendingRegistrationService, PendingRegistrationService>();
 builder.Services.AddScoped<ITokenGenerator, TokenGenerator>();
 builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<IPasswordResetService, PasswordResetService>();
 #endregion
 
 #region Framework AddScoped
@@ -70,6 +72,9 @@ builder.Services.AddValidatorsFromAssemblyContaining<RemoveFriendDtoValidator>()
 builder.Services.AddValidatorsFromAssemblyContaining<RegisterDtoValidator>();
 builder.Services.AddValidatorsFromAssemblyContaining<LoginDtoValidator>();
 #endregion
+#region PasswordReset
+builder.Services.AddValidatorsFromAssemblyContaining<NewPasswordDtoValidator>();
+#endregion
 #endregion
 
 builder.Services.AddRateLimiter(options =>
@@ -94,6 +99,15 @@ builder.Services.AddRateLimiter(options =>
             {
                 Window = TimeSpan.FromMinutes(1),
                 PermitLimit = 7
+            }));
+    
+    options.AddPolicy("password-reset", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                Window = TimeSpan.FromMinutes(1),
+                PermitLimit = 5
             }));
     
     options.AddPolicy("create-full-account", httpContext =>
