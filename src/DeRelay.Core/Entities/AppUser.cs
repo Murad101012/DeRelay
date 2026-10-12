@@ -47,7 +47,7 @@ public class AppUser
         Email = email;
     }
 
-    private void SetPasswordHash(string passwordHash)
+    public void SetPasswordHash(string passwordHash)
     {
         if (string.IsNullOrWhiteSpace(passwordHash)) throw new ValidationException("PasswordHash cannot be empty");
         PasswordHash = passwordHash;
