@@ -55,14 +55,18 @@ public class FriendRequestController(
     }
     
     [HttpGet("sent")]
-    public async Task<ActionResult<ReturnPersonAllFriendRequestSentDto>> GetListOfSendFriendRequest()
+    public async Task<ActionResult<ReturnPersonAllFriendRequestSentDto>> GetListOfSendFriendRequest
+        (CancellationToken cancellationToken)
     {
-        return await iFriendRequestService.GetAllFriendRequestOfUserSentByIdAsync(User.GetAppUserId());
+        return await iFriendRequestService.GetAllFriendRequestOfUserSentByIdAsync
+            (User.GetAppUserId(), cancellationToken);
     }
     
     [HttpGet("receiver")]
-    public async Task<ActionResult<ReturnPersonAllFriendRequestReceivedDto>> GetListOfReceivedFriendRequest()
+    public async Task<ActionResult<ReturnPersonAllFriendRequestReceivedDto>> GetListOfReceivedFriendRequest
+        (CancellationToken cancellationToken)
     {
-        return await iFriendRequestService.GetAllFriendRequestOfUserReceivedByIdAsync(User.GetAppUserId());
+        return await iFriendRequestService.GetAllFriendRequestOfUserReceivedByIdAsync
+            (User.GetAppUserId(), cancellationToken);
     }
 }

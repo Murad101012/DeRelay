@@ -123,11 +123,11 @@ public class ProfileGateTests
         var ghost = await SeedBare(scope.Context, "ghost@mail.com");
 
         await Assert.ThrowsAsync<NotFoundException>(() =>
-            scope.Requests.GetAllFriendRequestOfUserReceivedByIdAsync(ghost));
+            scope.Requests.GetAllFriendRequestOfUserReceivedByIdAsync(ghost, CancellationToken.None));
         await Assert.ThrowsAsync<NotFoundException>(() =>
-            scope.Requests.GetAllFriendRequestOfUserSentByIdAsync(ghost));
+            scope.Requests.GetAllFriendRequestOfUserSentByIdAsync(ghost, CancellationToken.None));
         await Assert.ThrowsAsync<NotFoundException>(() =>
-            scope.Friends.GetAllFriendsOfUserByIdAsync(ghost));
+            scope.Friends.GetAllFriendsOfUserByIdAsync(ghost, CancellationToken.None));
     }
 
     [Fact]

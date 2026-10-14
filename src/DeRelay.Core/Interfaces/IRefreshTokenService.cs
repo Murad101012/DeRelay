@@ -8,7 +8,7 @@ public interface IRefreshTokenService
     Task<ReturnNewRefreshTokenDto> CreateRefreshTokenWithNewSession(int appUserId);
     Task<ReturnNewRefreshTokenDto> RefreshTheRefreshTokenOfExistingSession(UserRefreshTokenDto userRefreshTokenDto);
     Task<RefreshToken> GetRefreshTokenObjectFromUserRefreshTokenString(string refreshToken);
-    Task<List<ReturnSessionDto>> ReturnAllSessionsAsync(int appUserId);
+    Task<List<ReturnSessionDto>> ReturnAllSessionsAsync(int appUserId, CancellationToken cancellationToken);
     Task DeleteSessionAsync(Guid sessionId, int appUserId);
     /// <summary>
     /// Deletes old refresh tokens in session if that session contains over <see cref="DeRelay.Core.Constants.RefreshTokenConstraints.RefreshTokenHoldingLimitForSession"/>

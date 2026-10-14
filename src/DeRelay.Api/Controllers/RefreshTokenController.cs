@@ -14,9 +14,10 @@ namespace DeRelay.Api.Controllers;
 public class RefreshTokenController(IRefreshTokenService iRefreshTokenService): ControllerBase
 {
     [HttpGet("session")]
-    public async Task<ActionResult<List<ReturnSessionDto>>> GetSessions()
+    public async Task<ActionResult<List<ReturnSessionDto>>> GetSessions
+        (CancellationToken cancellationToken)
     {
-        return await iRefreshTokenService.ReturnAllSessionsAsync(User.GetAppUserId());
+        return await iRefreshTokenService.ReturnAllSessionsAsync(User.GetAppUserId(), cancellationToken);
     }
     
     [HttpDelete("session/{sessionId:guid}")]

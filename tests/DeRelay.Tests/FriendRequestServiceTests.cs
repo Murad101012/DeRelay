@@ -196,9 +196,9 @@ public class FriendRequestServiceTests
         var (appA, personA, appB, personB) = await SeedTwoUsers(scope.Context);
         await scope.Service.SendFriendRequestAsync(appA, new SendFriendRequestDto(personB));
 
-        var sent = await scope.Service.GetAllFriendRequestOfUserSentByIdAsync(appA);
-        var received = await scope.Service.GetAllFriendRequestOfUserReceivedByIdAsync(appB);
-        var sentByB = await scope.Service.GetAllFriendRequestOfUserSentByIdAsync(appB);
+        var sent = await scope.Service.GetAllFriendRequestOfUserSentByIdAsync(appA, CancellationToken.None);
+        var received = await scope.Service.GetAllFriendRequestOfUserReceivedByIdAsync(appB, CancellationToken.None);
+        var sentByB = await scope.Service.GetAllFriendRequestOfUserSentByIdAsync(appB, CancellationToken.None);
 
         Assert.Contains(personB, sent.UsersId);
         Assert.Contains(personA, received.UsersId);

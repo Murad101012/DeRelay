@@ -156,8 +156,8 @@ public class FriendshipServiceTests
         await scope.Service.AddFriendAsync(appA, personB);
         await scope.Service.AddFriendAsync(appA, personC);
 
-        var friendsOfA = await scope.Service.GetAllFriendsOfUserByIdAsync(appA);
-        var friendsOfB = await scope.Service.GetAllFriendsOfUserByIdAsync(appB);
+        var friendsOfA = await scope.Service.GetAllFriendsOfUserByIdAsync(appA, CancellationToken.None);
+        var friendsOfB = await scope.Service.GetAllFriendsOfUserByIdAsync(appB, CancellationToken.None);
 
         Assert.Equal(2, friendsOfA.UserIds.Count);
         Assert.Contains(personB, friendsOfA.UserIds);

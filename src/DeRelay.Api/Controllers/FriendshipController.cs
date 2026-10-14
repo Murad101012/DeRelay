@@ -29,8 +29,8 @@ public class FriendshipController(
     }
 
     [HttpGet]
-    public async Task<ActionResult<ReturnFriendsDto>> Get()
+    public async Task<ActionResult<ReturnFriendsDto>> Get(CancellationToken cancellationToken)
     {
-        return await iFriendshipService.GetAllFriendsOfUserByIdAsync(User.GetAppUserId());
+        return await iFriendshipService.GetAllFriendsOfUserByIdAsync(User.GetAppUserId(), cancellationToken);
     }
 }

@@ -8,6 +8,9 @@ public interface IFriendRequestService
     public Task SendFriendRequestAsync(int appUserId, SendFriendRequestDto dto);
     public Task AcceptFriendRequestAsync(int appUserId, AcceptFriendRequestDto dto);
     public Task DeclineFriendRequestAsync(int appUserId, DeclineFriendRequestDto dto);
-    public Task<ReturnPersonAllFriendRequestReceivedDto> GetAllFriendRequestOfUserReceivedByIdAsync(int appUserId);
-    public Task<ReturnPersonAllFriendRequestSentDto> GetAllFriendRequestOfUserSentByIdAsync(int appUserId);
+    public Task<ReturnPersonAllFriendRequestReceivedDto> GetAllFriendRequestOfUserReceivedByIdAsync(int appUserId,
+        CancellationToken cancellationToken);
+    public Task<ReturnPersonAllFriendRequestSentDto> GetAllFriendRequestOfUserSentByIdAsync
+    (int appUserId, 
+        CancellationToken cancellationToken);
 }

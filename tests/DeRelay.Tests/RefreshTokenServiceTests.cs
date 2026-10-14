@@ -227,7 +227,7 @@ public class RefreshTokenServiceTests
 
         // Two rows on disk (one revoked corpse), but exactly one live session.
         Assert.Equal(2, await scope.Context.RefreshToken.CountAsync());
-        var sessions = await scope.Service.ReturnAllSessionsAsync(appUserId);
+        var sessions = await scope.Service.ReturnAllSessionsAsync(appUserId, CancellationToken.None);
         var liveSession = await scope.Context.RefreshToken
             .Where(r => !r.IsRevoked).Select(r => r.SessionId).SingleAsync();
         Assert.Single(sessions);
@@ -353,7 +353,7 @@ public class RefreshTokenServiceTests
         s2 = await scope.Service.RefreshTheRefreshTokenOfExistingSession(new UserRefreshTokenDto(s2.RefreshToken));
         Assert.Equal(5, await scope.Context.RefreshToken.CountAsync());
 
-        var sessions = await scope.Service.ReturnAllSessionsAsync(appUserId);
+        var sessions = await scope.Service.ReturnAllSessionsAsync(appUserId, CancellationToken.None);
         Assert.Equal(2, sessions.Count);
         var liveIds = await scope.Context.RefreshToken
             .Where(t => !t.IsRevoked).Select(t => t.SessionId).ToListAsync();
