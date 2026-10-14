@@ -57,6 +57,7 @@ public class DeRelayWebFactory : WebApplicationFactory<Program>
             {
                 ["Jwt:Key"] = TestSecret,
                 ["Confirmation:Key"] = "dGVzdC1vbmx5LWNvbmZpcm1hdGlvbi1rZXk=",
+                ["PasswordReset:Key"] = "dGVzdC1yZXNldC1rZXktZm9yLXRlc3Rz",
                 ["ConnectionStrings:DefaultConnection"] = "Host=none;Database=none",
             }));
         builder.ConfigureServices(services =>
