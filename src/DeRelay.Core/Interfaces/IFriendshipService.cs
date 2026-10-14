@@ -6,5 +6,6 @@ public interface IFriendshipService
 {
     public Task AddFriendAsync(int appUserId, int personId);
     public Task RemoveFriendAsync(int appUserId, RemoveFriendDto dto);
-    public Task<ReturnFriendsDto> GetAllFriendsOfUserByIdAsync(int appUserId);
+    public Task<ReturnFriendsDto> GetAllFriendsOfUserByIdAsync
+        (int appUserId, CancellationToken cancellationToken);
 }

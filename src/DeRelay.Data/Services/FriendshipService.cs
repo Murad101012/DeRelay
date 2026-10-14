@@ -61,7 +61,8 @@ public class FriendshipService(
         await deRelayDbContext.SaveChangesAsync();
     }
 
-    public async Task<ReturnFriendsDto> GetAllFriendsOfUserByIdAsync(int appUserId)
+    public async Task<ReturnFriendsDto> GetAllFriendsOfUserByIdAsync
+        (int appUserId, CancellationToken cancellationToken)
     {
         var appUser = await iAppUserService.ReturnAppUserByIdAsync(appUserId);
         int personId = appUser.ValidatePersonIdAndReturn();
@@ -70,7 +71,7 @@ public class FriendshipService(
             .AsNoTracking()
             .Where(x => x.User2Id == personId || x.User1Id == personId)
             .Select(x => x.User1Id == personId ? x.User2Id : x.User1Id)
-            .ToListAsync());
+            .ToListAsync(cancellationToken));
     }
     
     private bool CheckSenderReceiverIdIsSame(int person1, int person2) => person1 == person2;

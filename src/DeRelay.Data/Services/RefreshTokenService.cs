@@ -59,12 +59,14 @@ public class RefreshTokenService(DeRelayDbContext deRelayDbContext): IRefreshTok
                throw new NotFoundException("RefreshToken not found");
     }
 
-    public async Task<List<ReturnSessionDto>> ReturnAllSessionsAsync(int appUserId)
+    public async Task<List<ReturnSessionDto>> ReturnAllSessionsAsync
+        (int appUserId, CancellationToken cancellationToken)
     {
         var allSessions =
             await deRelayDbContext.RefreshToken.Where
                     (t => t.AppUserId == appUserId && !t.IsRevoked)
-                .Select(token => new { SessionId = token.SessionId, SessionExpiry = token.SessionExpiry }).ToListAsync();
+                .Select(token => new { SessionId = token.SessionId, SessionExpiry = token.SessionExpiry })
+                .ToListAsync(cancellationToken);
 
         var returnSessionDtos = new List<ReturnSessionDto>();
         for (var i = 0; i < allSessions.Count; i++)

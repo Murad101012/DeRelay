@@ -87,7 +87,8 @@ public class FriendRequestService(
         await deRelayDbContext.SaveChangesAsync();
     }
 
-    public async Task<ReturnPersonAllFriendRequestReceivedDto> GetAllFriendRequestOfUserReceivedByIdAsync(int appUserId)
+    public async Task<ReturnPersonAllFriendRequestReceivedDto> 
+        GetAllFriendRequestOfUserReceivedByIdAsync(int appUserId, CancellationToken cancellationToken)
     {
         var appUser = await iAppUserService.ReturnAppUserByIdAsync(appUserId);
         int personId = appUser.ValidatePersonIdAndReturn();
@@ -95,10 +96,11 @@ public class FriendRequestService(
             .AsNoTracking()
             .Where(x => x.ReceiverId == personId)
             .Select(x => x.SenderId)
-            .ToListAsync());
+            .ToListAsync(cancellationToken));
     }
 
-    public async Task<ReturnPersonAllFriendRequestSentDto> GetAllFriendRequestOfUserSentByIdAsync(int appUserId)
+    public async Task<ReturnPersonAllFriendRequestSentDto> GetAllFriendRequestOfUserSentByIdAsync
+        (int appUserId, CancellationToken cancellationToken)
     {
         var appUser = await iAppUserService.ReturnAppUserByIdAsync(appUserId);
         int personId = appUser.ValidatePersonIdAndReturn();
@@ -106,7 +108,7 @@ public class FriendRequestService(
             .AsNoTracking()
             .Where(x => x.SenderId == personId)
             .Select(x => x.ReceiverId)
-            .ToListAsync());
+            .ToListAsync(cancellationToken));
     }
 
     private void RemoveFriendRequest(FriendRequest friendRequest)
