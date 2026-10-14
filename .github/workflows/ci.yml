@@ -21,3 +21,5 @@ jobs:
       - run: dotnet build DeRelay.slnx --no-restore --nologo -v q
 
       - run: dotnet test tests/DeRelay.Tests/DeRelay.Tests.csproj --no-build --nologo -v q
+
+      - run: bash person-id-guard.sh
