@@ -77,6 +77,7 @@ builder.Services.AddValidatorsFromAssemblyContaining<NewPasswordDtoValidator>();
 #endregion
 #endregion
 
+#region RateLimiter
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -137,6 +138,7 @@ builder.Services.AddRateLimiter(options =>
                 PermitLimit = 4
             }));
 });
+#endregion
 
 builder.Services.AddControllers()
     //In Enum if 0 = "Male", it will show "Male" in gender, instead of 0.
@@ -193,6 +195,15 @@ builder.Services.AddAuthorization();
 builder.Services.AddHostedService<DataCleanupService>();
 
 var app = builder.Build();
+
+//It's for Docker, when first time compose begin it will create tables
+//based on all migrations made so far before published
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<DeRelayDbContext>();
+    if (db.Database.IsNpgsql())
+        db.Database.Migrate();
+}
 
 //For swagger
 if (app.Environment.IsDevelopment())
