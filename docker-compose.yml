@@ -1,0 +1,60 @@
+name: derelay
+# Volumes declaring in top level required when we using a volume in a service under volumes in service
+# But if we only binding in service under volumes, then we don't next volumes: pgdata: as top-level declaration
+# For example under the db service if I wrote: 
+# volumes:
+#  - ./my-local-folder:/var/lib/postgresql
+# I doesn't need volumes: pgdata:
+volumes:
+  pgdata:
+services:
+  derelay-api:
+    container_name: DeRelay
+    depends_on:
+      db:
+        # We define how this service (derelay-api) depends on the service it's depends (db)
+        # There have three different behaviour we can add
+        # service_started: Waiting service's container until started (default behavior).
+        # service_healthy: Waiting until service ready to work, open to connection and etc. Requires a healthcheck to be defined on the service.
+        # service_completed_successfully: Waiting until the service succefully started, do it's job and exit succesfully. Useful for one-shot or setup services.        
+        condition: service_healthy
+    build:
+      context: .
+      dockerfile: Dockerfile          # Getting Dockerfile in / (Context)
+    ports:
+      - "5086:8080"
+    env_file:
+      - .env   # Api now gets the connection string + Jwt__Key and other secrets it's need
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production   # Production disables Swagger
+  # Service name MUST MATCH to host of postgres that we connect from asp.net core
+  db:
+    container_name: db
+    image: postgres:18
+    environment:
+      # According to https://hub.docker.com/_/postgres/#environment-variables...
+      # DB, USER and PASSWORD variables are look first time when image boot up to configure the Postgres server. 
+      # Only mandatory variable is PASSWORD (If we manually didn't make passwordless database).
+      # DB and USER have default values if we don't assign them anything.
+      POSTGRES_DB: ${POSTGRES_DB} #${VAR} take value as order with priorty -> OS-Level (Export) ->
+                                  #--env-file (docker compose --env-file ./myvars.env) ->
+                                  #-> .env file that in same folder with compose file.. as fallback.
+      POSTGRES_USER: ${POSTGRES_USER}
+      # As note can manually insert value in here as POSTGRES_PASSWORD: 294820
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      # In postgres image, it's configured to save data in this folder, so we create volume based on this:
+      # According to https://docs.docker.com/guides/postgresql/#named-volumes Note: after postgres 18+
+      # version, they change address naming to version where it become /var/lib/postgresql/{version}/data,
+      # so, for making the code universal for all version after 18+, we uses /var/lib/postgresql, despite
+      # actual data is in 2 level above /var/lib/postgresql/{version}/data
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      # Test work as running a code and looking it's status code. Under the hood, all commands returns a
+      # status code that not visible to human. If returns 0, test passed. Anything different than 0, it's fail.
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    ports:
+      - "5432:5432"

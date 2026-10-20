@@ -1,0 +1,17 @@
+.env
+
+# Git & IDEs
+.git
+.gitignore
+.vs
+.vscode
+.idea
+
+# .NET Build artifacts & local user data
+**/bin/
+**/obj/
+**/publish/
+tests/
+playground/
+Roadmap.md
+IgnoredForLearning.md
