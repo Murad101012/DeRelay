@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace DeRelay.Data.Migrations
 {
     [DbContext(typeof(DeRelayDbContext))]
-    [Migration("20261008123418_PendingRegistration")]
-    partial class PendingRegistration
+    [Migration("20261018132931_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -93,6 +93,26 @@ namespace DeRelay.Data.Migrations
                     b.HasIndex("User2Id");
 
                     b.ToTable("Friendships");
+                });
+
+            modelBuilder.Entity("DeRelay.Core.Entities.PasswordReset", b =>
+                {
+                    b.Property<string>("hashedLink")
+                        .HasColumnType("text");
+
+                    b.Property<string>("email")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("linkExpire")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("resetExpire")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("hashedLink");
+
+                    b.ToTable("PasswordReset");
                 });
 
             modelBuilder.Entity("DeRelay.Core.Entities.PendingRegistration", b =>
