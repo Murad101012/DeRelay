@@ -12,6 +12,7 @@
 Agents.md
 Roadmap.md
 IgnoredForLearning.md
+.env
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
