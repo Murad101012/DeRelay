@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using DeRelay.Api.BackgroundServices;
 using DeRelay.Api.Extensions;
+using DeRelay.Api.HealthChecks;
 using DeRelay.Api.Middlewares;
 using DeRelay.Core.Entities;
 using DeRelay.Core.Interfaces;
@@ -20,6 +21,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using DeRelay.Core.Validators.PasswordReset;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -194,6 +196,13 @@ builder.Services.AddAuthorization();
 
 builder.Services.AddHostedService<DataCleanupService>();
 
+builder.Services.AddHealthChecks()
+    .AddCheck<DatabaseHealthCheck>(
+        "database",
+        failureStatus: null,
+        tags:  new[] { "ready" }, // <-- We create a custom tag
+        timeout: TimeSpan.FromSeconds(2));
+
 var app = builder.Build();
 
 //It's for Docker, when first time compose begin it will create tables
@@ -218,5 +227,35 @@ app.UseAuthorization();
 app.UseRateLimiter();
 
 app.MapControllers();
+
+app.MapHealthChecks("/health/live", new HealthCheckOptions
+{
+    Predicate =  _ => false
+});
+app.MapHealthChecks("/health/ready", new HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("ready"),
+    ResponseWriter = async (context, report) =>
+    {
+        var response = new
+        {
+            //These three are general status as recap after all checks done
+            status = report.Status.ToString(),
+            timestamp = DateTime.UtcNow,
+            totalDurationMs = report.TotalDuration.TotalMilliseconds,
+            
+            //This is for per check status report
+            checks = report.Entries.Select(entry => new
+            {
+                name = entry.Key,
+                status = entry.Value.Status.ToString(),
+                description = entry.Value.Description,
+                observedValueMs = entry.Value.Duration.TotalMilliseconds
+            })
+        };
+
+        await context.Response.WriteAsJsonAsync(response);
+    }
+});
 
 app.Run();
